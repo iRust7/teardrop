@@ -8,7 +8,22 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true,
+  timeout: 30000, // 30 second timeout
 });
+
+// Retry logic for network errors
+const retryRequest = async (fn: () => Promise<any>, retries = 2, delay = 1000): Promise<any> => {
+  try {
+    return await fn();
+  } catch (error: any) {
+    if (retries === 0 || (error.response && error.response.status !== 0)) {
+      throw error;
+    }
+    console.log(`[API] Retrying request... (${retries} attempts left)`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return retryRequest(fn, retries - 1, delay * 2);
+  }
+};
 
 // Add session token to requests
 api.interceptors.request.use(
@@ -75,8 +90,10 @@ export const authAPI = {
 // Users API
 export const usersAPI = {
   getAllUsers: async () => {
-    const response = await api.get('/users');
-    return response.data.data; // Unwrap { success, data, message } format
+    return retryRequest(async () => {
+      const response = await api.get('/users');
+      return response.data.data; // Unwrap { success, data, message } format
+    });
   },
 
   updateStatus: async (status: 'online' | 'offline' | 'away') => {
@@ -88,10 +105,12 @@ export const usersAPI = {
 // Messages API
 export const messagesAPI = {
   getMessages: async (userId?: string) => {
-    const response = await api.get('/messages', {
-      params: userId ? { userId } : undefined,
+    return retryRequest(async () => {
+      const response = await api.get('/messages', {
+        params: userId ? { userId } : undefined,
+      });
+      return response.data.data; // Unwrap { success, data, message } format
     });
-    return response.data.data; // Unwrap { success, data, message } format
   },
 
   createMessage: async (message: { content: string; receiver_id: string }) => {

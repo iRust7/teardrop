@@ -128,7 +128,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             setIsConnected(true);
             // Cache user data for instant restoration
             localStorage.setItem('cached_user', JSON.stringify(userData.user));
+            // Load sequentially to avoid overwhelming server
             await loadUsers();
+            await new Promise(resolve => setTimeout(resolve, 300));
             await loadMessages();
           }
         } catch (apiError) {
@@ -183,10 +185,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       return;
     }
 
-    // Initial load
+    // Initial load - do sequentially to avoid overwhelming server
     console.log('[REALTIME] Initial load for user:', currentUser.username);
-    loadMessages();
-    loadUsers();
+    loadUsers().then(() => {
+      loadMessages();
+    });
 
     // Subscribe to new messages (messages sent TO or FROM current user)
     console.log('[REALTIME] Setting up message subscription for user:', currentUser.username);
@@ -294,6 +297,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       
       console.log('[LOGIN] Loading users and messages...');
       await loadUsers();
+      await new Promise(resolve => setTimeout(resolve, 300));
       await loadMessages();
       
       // Request notification permission
@@ -322,6 +326,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       setIsConnected(true);
       
       await loadUsers();
+      await new Promise(resolve => setTimeout(resolve, 300));
       await loadMessages();
       console.log('[REGISTER] Registration complete');
     } catch (error: any) {
