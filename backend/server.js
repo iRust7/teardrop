@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { config } from './src/config/database.js';
 import { errorHandler, notFoundHandler } from './src/middleware/errorHandler.js';
+import { StatusService } from './src/services/statusService.js';
 
 // Routes
 import authRoutes from './src/routes/auth.js';
@@ -73,6 +74,9 @@ app.listen(PORT, () => {
   console.log(`   • Users: http://localhost:${PORT}/api/users`);
   console.log(`   • Messages: http://localhost:${PORT}/api/messages`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  
+  // Start user status monitoring
+  StatusService.startMonitoring();
 });
 
 // Graceful shutdown

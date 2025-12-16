@@ -68,6 +68,11 @@ export const usersAPI = {
     const response = await api.get('/users');
     return response.data.data; // Unwrap { success, data, message } format
   },
+
+  updateStatus: async (status: 'online' | 'offline' | 'away') => {
+    const response = await api.put('/users/status', { status });
+    return response.data.data; // Unwrap { success, data, message } format
+  },
 };
 
 // Messages API

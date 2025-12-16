@@ -52,6 +52,22 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     checkAuth();
   }, []);
 
+  // Heartbeat to keep user status online
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser) return;
+
+    // Send heartbeat every 30 seconds to update last_seen
+    const heartbeatInterval = setInterval(async () => {
+      try {
+        await usersAPI.updateStatus('online');
+      } catch (error) {
+        console.error('Heartbeat error:', error);
+      }
+    }, 30000);
+
+    return () => clearInterval(heartbeatInterval);
+  }, [isAuthenticated, currentUser]);
+
   // Real-time subscription for messages
   useEffect(() => {
     if (!isAuthenticated || !currentUser) return;
@@ -60,25 +76,26 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     loadMessages();
     loadUsers();
 
-    // Subscribe to new messages
+    // Subscribe to new messages (messages sent TO or FROM current user)
     const messagesChannel = supabase
       .channel('messages_channel')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `user_id=eq.${currentUser.id},receiver_id=eq.${currentUser.id}`,
         },
         (payload) => {
           console.log('Message change received:', payload);
+          const newMessage = payload.new as any;
           
-          if (payload.eventType === 'INSERT') {
-            const newMessage = payload.new as any;
+          // Only add if message involves current user
+          if (newMessage.user_id === currentUser.id || newMessage.receiver_id === currentUser.id) {
             setMessages((prev) => [...prev, {
               id: newMessage.id,
               userId: newMessage.user_id,
+              receiverId: newMessage.receiver_id,
               username: 'User', // Will be updated on next load
               content: newMessage.content,
               timestamp: new Date(newMessage.created_at).getTime(),
@@ -86,19 +103,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
               type: 'text',
               isRead: newMessage.is_read,
             }]);
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedMessage = payload.new as any;
-            setMessages((prev) => 
-              prev.map((m) => 
-                m.id === updatedMessage.id 
-                  ? { ...m, isRead: updatedMessage.is_read }
-                  : m
-              )
-            );
+            
+            // Reload to get complete data with usernames
+            setTimeout(() => loadMessages(), 500);
           }
-          
-          // Reload to get complete data with usernames
-          loadMessages();
         }
       )
       .subscribe();
@@ -143,7 +151,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           username: u.username,
           email: u.email,
           avatar: u.avatar_url,
-          status: u.status || 'online',
+          status: u.status || 'offline', // Default offline, akan ter-update dari database
         })));
       }
     } catch (error) {
@@ -159,8 +167,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       if (fetchedMessages && Array.isArray(fetchedMessages)) {
         setMessages(fetchedMessages.map((m: any) => ({
           id: m.id,
-          userId: m.user_id || m.sender_id,
-          username: m.users?.username || m.sender?.username || 'Unknown',
+          userId: m.user_id,
+          receiverId: m.receiver_id,
+          username: m.sender?.username || 'Unknown',
           content: m.content,
           timestamp: new Date(m.created_at).getTime(),
           hash: '',

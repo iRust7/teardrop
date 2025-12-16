@@ -53,7 +53,11 @@ export class MessageModel {
   static async getUserMessages(userId, limit = 100) {
     const { data, error } = await supabaseAdmin
       .from('messages')
-      .select('*, users!messages_user_id_fkey(id, username, avatar_url)')
+      .select(`
+        *,
+        sender:users!messages_user_id_fkey(id, username, avatar_url, status),
+        receiver:users!messages_receiver_id_fkey(id, username, avatar_url, status)
+      `)
       .or(`user_id.eq.${userId},receiver_id.eq.${userId}`)
       .order('created_at', { ascending: false })
       .limit(limit);

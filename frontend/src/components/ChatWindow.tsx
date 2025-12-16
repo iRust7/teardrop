@@ -25,11 +25,14 @@ const ChatWindow: React.FC = () => {
 
   // Filter messages for selected conversation
   const filteredMessages = selectedUserId 
-    ? messages.filter(m => 
-        (m.userId === currentUser?.id && m.userId === selectedUserId) ||
-        (m.userId === selectedUserId && m.userId === currentUser?.id)
-      )
-    : messages;
+    ? messages.filter(m => {
+        // Show messages where current user is sender and selected user is receiver
+        // OR selected user is sender and current user is receiver
+        const isFromCurrentToSelected = m.userId === currentUser?.id && m.receiverId === selectedUserId;
+        const isFromSelectedToCurrent = m.userId === selectedUserId && m.receiverId === currentUser?.id;
+        return isFromCurrentToSelected || isFromSelectedToCurrent;
+      })
+    : [];
 
   return (
     <div className="flex h-screen bg-white">
