@@ -34,9 +34,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     // Check if user is already logged in
     const checkAuth = async () => {
       try {
-        const session = await authAPI.getSession();
-        if (session && session.user) {
-          setCurrentUser(session.user);
+        const userData = await authAPI.getSession();
+        if (userData && userData.user) {
+          setCurrentUser(userData.user);
           setIsAuthenticated(true);
           setIsConnected(true);
           await loadUsers();

@@ -13,12 +13,9 @@ const api = axios.create({
 // Add session token to requests
 api.interceptors.request.use(
   (config) => {
-    const session = localStorage.getItem('supabase.auth.token');
-    if (session) {
-      const { access_token } = JSON.parse(session);
-      if (access_token) {
-        config.headers.Authorization = `Bearer ${access_token}`;
-      }
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -31,29 +28,37 @@ api.interceptors.request.use(
 export const authAPI = {
   register: async (username: string, email: string, password: string) => {
     const response = await api.post('/auth/register', { username, email, password });
-    if (response.data.session) {
-      localStorage.setItem('supabase.auth.token', JSON.stringify(response.data.session));
+    if (response.data.data?.token) {
+      localStorage.setItem('auth_token', response.data.data.token);
     }
-    return response.data;
+    return response.data.data;
   },
 
   login: async (email: string, password: string) => {
     const response = await api.post('/auth/login', { email, password });
-    if (response.data.session) {
-      localStorage.setItem('supabase.auth.token', JSON.stringify(response.data.session));
+    if (response.data.data?.token) {
+      localStorage.setItem('auth_token', response.data.data.token);
     }
-    return response.data;
+    return response.data.data;
   },
 
   logout: async () => {
     const response = await api.post('/auth/logout');
-    localStorage.removeItem('supabase.auth.token');
+    localStorage.removeItem('auth_token');
     return response.data;
   },
 
   getSession: async () => {
-    const session = localStorage.getItem('supabase.auth.token');
-    return session ? JSON.parse(session) : null;
+    const token = localStorage.getItem('auth_token');
+    if (!token) return null;
+    
+    try {
+      const response = await api.get('/auth/profile');
+      return response.data.data;
+    } catch (error) {
+      localStorage.removeItem('auth_token');
+      return null;
+    }
   },
 };
 
