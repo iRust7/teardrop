@@ -50,12 +50,19 @@ export const authAPI = {
 
   getSession: async () => {
     const token = localStorage.getItem('auth_token');
-    if (!token) return null;
+    if (!token) {
+      console.log('[AUTH] No token found in localStorage');
+      return null;
+    }
     
     try {
+      console.log('[AUTH] Validating token...');
       const response = await api.get('/auth/profile');
-      return response.data.data;
+      console.log('[AUTH] Session valid:', response.data);
+      // Return in same format as login/register
+      return { user: response.data.data };
     } catch (error) {
+      console.error('[AUTH] Session validation failed:', error);
       localStorage.removeItem('auth_token');
       return null;
     }
@@ -84,8 +91,10 @@ export const messagesAPI = {
     return response.data.data; // Unwrap { success, data, message } format
   },
 
-  createMessage: async (message: { content: string; sender_id: string; receiver_id: string }) => {
+  createMessage: async (message: { content: string; receiver_id: string }) => {
+    console.log('[MESSAGE] Sending message:', message);
     const response = await api.post('/messages', message);
+    console.log('[MESSAGE] Message sent response:', response.data);
     return response.data.data; // Unwrap { success, data, message } format
   },
 };

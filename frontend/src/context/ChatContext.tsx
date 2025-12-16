@@ -36,24 +36,34 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   useEffect(() => {
     // Check if user is already logged in
     const checkAuth = async () => {
+      console.log('[APP] Checking authentication...');
       setIsLoading(true);
       try {
         const token = localStorage.getItem('auth_token');
+        console.log('[APP] Token exists:', !!token);
+        
         if (!token) {
+          console.log('[APP] No token, showing login');
           setIsLoading(false);
           return;
         }
 
         const userData = await authAPI.getSession();
+        console.log('[APP] Session data:', userData);
+        
         if (userData && userData.user) {
+          console.log('[APP] User authenticated:', userData.user.username);
           setCurrentUser(userData.user);
           setIsAuthenticated(true);
           setIsConnected(true);
           await loadUsers();
           await loadMessages();
+        } else {
+          console.log('[APP] No user data, clearing token');
+          localStorage.removeItem('auth_token');
         }
       } catch (error) {
-        console.error('Auth check error:', error);
+        console.error('[APP] Auth check error:', error);
         setIsAuthenticated(false);
         localStorage.removeItem('auth_token');
       } finally {
@@ -89,6 +99,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     loadUsers();
 
     // Subscribe to new messages (messages sent TO or FROM current user)
+    console.log('[REALTIME] Setting up message subscription for user:', currentUser.username);
     const messagesChannel = supabase
       .channel('messages_channel')
       .on(
@@ -99,13 +110,16 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           table: 'messages',
         },
         (payload) => {
-          console.log('New message received:', payload);
+          console.log('[REALTIME] New message received!', payload);
           const newMessage = payload.new as any;
           
           // Only add if message involves current user
           if (newMessage.user_id === currentUser.id || newMessage.receiver_id === currentUser.id) {
+            console.log('[REALTIME] Message is for current user, reloading...');
+            
             // Play notification sound if message is from someone else
             if (newMessage.user_id !== currentUser.id) {
+              console.log('[REALTIME] Playing notification sound');
               playNotificationSound();
             }
             
@@ -113,10 +127,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             loadMessages();
             // Also reload users to update last seen
             loadUsers();
+          } else {
+            console.log('[REALTIME] Message not for current user, ignoring');
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[REALTIME] Subscription status:', status);
+      });
 
     // Subscribe to user status changes
     const usersChannel = supabase
@@ -151,7 +169,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   const loadUsers = async () => {
     try {
+      console.log('[USERS] Loading users...');
       const fetchedUsers = await usersAPI.getAllUsers();
+      console.log('[USERS] Fetched users:', fetchedUsers?.length || 0);
       if (fetchedUsers && Array.isArray(fetchedUsers)) {
         setUsers(fetchedUsers.map((u: any) => ({
           id: u.id,
@@ -170,7 +190,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     if (!currentUser) return;
     
     try {
+      console.log('[MESSAGES] Loading messages for user:', currentUser.username);
       const fetchedMessages = await messagesAPI.getMessages(currentUser.id);
+      console.log('[MESSAGES] Fetched messages:', fetchedMessages?.length || 0);
       if (fetchedMessages && Array.isArray(fetchedMessages)) {
         setMessages(fetchedMessages.map((m: any) => ({
           id: m.id,
@@ -239,12 +261,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const sendMessage = async (content: string, receiverId: string) => {
     if (!currentUser || !content.trim()) return;
 
+    console.log('[CHAT] Sending message to:', receiverId);
     try {
-      await messagesAPI.createMessage({
+      const result = await messagesAPI.createMessage({
         content: content.trim(),
-        sender_id: currentUser.id,
         receiver_id: receiverId,
       });
+      console.log('[CHAT] Message sent successfully:', result);
 
       // Reload messages immediately
       await loadMessages();
