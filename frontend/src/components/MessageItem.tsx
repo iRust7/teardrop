@@ -91,9 +91,11 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isOwnMessage, showAv
         </div>
 
         {/* Hash verification indicator */}
-        <div className="text-xs text-gray-400 mt-1 px-1">
-          <span title={`Hash: ${message.hash.substring(0, 16)}...`}>🔒</span>
-        </div>
+        {message.hash && (
+          <div className="text-xs text-gray-400 mt-1 px-1">
+            <span title={`Hash: ${message.hash.substring(0, 16)}...`}>🔒</span>
+          </div>
+        )}
       </div>
     </div>
   );

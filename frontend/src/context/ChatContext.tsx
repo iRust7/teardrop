@@ -74,13 +74,20 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           userId: m.user_id,
           receiverId: m.receiver_id,
           username: m.sender?.username || 'Unknown',
-          content: m.content,
+          content: m.content || '',
           timestamp: new Date(m.created_at).getTime(),
           hash: '',
-          type: 'text' as const,
+          type: (m.type || 'text') as 'text' | 'file',
+          fileData: m.file_data ? {
+            name: m.file_data.name,
+            size: m.file_data.size,
+            type: m.file_data.type,
+            url: m.file_data.url,
+            hash: m.file_data.hash || '',
+          } : undefined,
           isRead: m.is_read,
         }));
-        console.log('[MESSAGES] Setting messages state with', mappedMessages.length, 'messages');
+        console.log('[MESSAGES] Setting messages state with', mappedMessages.length, 'messages', '(Files:', mappedMessages.filter(m => m.type === 'file').length, ')');
         setMessages(mappedMessages);
       }
     } catch (error) {
@@ -241,14 +248,21 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                 userId: newMessage.user_id,
                 receiverId: newMessage.receiver_id,
                 username: newMessage.user_id === currentUser.id ? currentUser.username : '...', // Placeholder until reload
-                content: newMessage.content,
+                content: newMessage.content || '',
                 timestamp: new Date(newMessage.created_at).getTime(),
                 hash: '',
-                type: 'text',
+                type: (newMessage.type || 'text') as 'text' | 'file',
+                fileData: newMessage.file_data ? {
+                  name: newMessage.file_data.name,
+                  size: newMessage.file_data.size,
+                  type: newMessage.file_data.type,
+                  url: newMessage.file_data.url,
+                  hash: newMessage.file_data.hash || '',
+                } : undefined,
                 isRead: newMessage.is_read
               };
               
-              console.log('[REALTIME] Adding new message to state');
+              console.log('[REALTIME] Adding new message to state, type:', newMessage.type, 'hasFile:', !!newMessage.file_data);
               return [...prev, optimisiticMessage];
             });
             
