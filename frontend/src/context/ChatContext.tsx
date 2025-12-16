@@ -347,7 +347,16 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         throw new Error(errorMsg);
       }
       
-      const message = error.response?.data?.error || error.response?.data?.message || error.message || 'Login failed';
+      // Ensure we always get a string message
+      let message = 'Login failed';
+      if (error.response?.data?.message) {
+        message = String(error.response.data.message);
+      } else if (error.response?.data?.error) {
+        message = String(error.response.data.error);
+      } else if (error.message) {
+        message = String(error.message);
+      }
+      
       setAuthError(message);
       throw new Error(message);
     }

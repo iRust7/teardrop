@@ -125,12 +125,15 @@ export class AuthController {
     // Check if email is verified
     if (!user.email_verified) {
       console.log(`[LOGIN] Email not verified for: ${email}`);
-      return res.status(403).json(
-        ApiResponse.error('Please verify your email first. Check your inbox for OTP code.', { 
+      return res.status(403).json({
+        success: false,
+        message: 'Please verify your email first. Check your inbox for OTP code.',
+        data: { 
           needsVerification: true,
           email: user.email 
-        })
-      );
+        },
+        timestamp: new Date().toISOString()
+      });
     }
 
     // Check failed login attempts
