@@ -4,39 +4,50 @@ import nodemailer from 'nodemailer';
  * Email Service untuk mengirim OTP via Gmail
  */
 
-// Konfigurasi transporter untuk Gmail
-const createTransporter = () => {
+// Konfigurasi transporter untuk Gmail dengan fallback
+const createTransporter = (usePort587 = false) => {
   // Increase timeouts for production environment (Railway needs more time)
   const isProd = process.env.NODE_ENV === 'production';
   
+  // Railway/Cloud environments often block port 465, use 587 as alternative
+  const port = usePort587 ? 587 : 465;
+  const secure = !usePort587; // false for 587 (uses STARTTLS), true for 465
+  
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465, // Use port 465 for SSL (often more reliable than 587)
-    secure: true, // true for 465
+    port: port,
+    secure: secure,
     auth: {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_APP_PASSWORD,
     },
     // Force IPv4 to avoid IPv6 connection issues
     family: 4,
-    // Timeouts
-    connectionTimeout: isProd ? 60000 : 10000, // 10s dev (fail fast to fallback)
-    greetingTimeout: isProd ? 30000 : 5000,
-    socketTimeout: isProd ? 60000 : 10000,
-    // Disable pool for better debugging/reliability in dev
+    // Timeouts - more aggressive for port 465, longer for 587
+    connectionTimeout: usePort587 ? 30000 : 15000,
+    greetingTimeout: 15000,
+    socketTimeout: usePort587 ? 30000 : 15000,
+    // Disable pool for better debugging/reliability
     pool: false,
-    // Debug logging
+    // Debug logging in development
     logger: !isProd,
     debug: !isProd
   });
 };
 
 /**
- * Kirim OTP ke email user
+ * Kirim OTP ke email user dengan auto-fallback ke port 587
  */
 export const sendOTPEmail = async (toEmail, otpCode) => {
-  try {
-    const transporter = createTransporter();
+  // Try port 465 first, fallback to 587 if timeout
+  let lastError = null;
+  
+  for (const usePort587 of [false, true]) {
+    try {
+      const port = usePort587 ? 587 : 465;
+      console.log(`[EMAIL] Attempting to send via port ${port}...`);
+      
+      const transporter = createTransporter(usePort587);
 
     const mailOptions = {
       from: `"Teardrop Chat" <${process.env.GMAIL_USER}>`,
@@ -247,38 +258,46 @@ Jika kamu tidak meminta kode ini, abaikan email ini.
       `,
     };
 
-    // Add timeout promise to prevent hanging
-    // Longer timeout for production environment
-    const isProd = process.env.NODE_ENV === 'production';
-    const timeoutMs = isProd ? 60000 : 15000; // 60s prod, 15s dev (fail fast)
-    
-    const sendMailPromise = transporter.sendMail(mailOptions);
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error(`Email send timeout after ${timeoutMs/1000}s`)), timeoutMs)
-    );
-    
-    const info = await Promise.race([sendMailPromise, timeoutPromise]);
-    console.log(`[EMAIL] ✅ OTP sent to ${toEmail}: ${info.messageId}`);
-    return { success: true, messageId: info.messageId };
-  } catch (error) {
-    console.error('[EMAIL] ❌ Failed to send OTP:', error.message);
-    
-    // FALLBACK FOR DEVELOPMENT: If email fails, just log it and continue
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('\n⚠️  [DEV MODE FALLBACK] Email sending failed, but continuing...');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log(`🔑 OTP Code for ${toEmail}: ${otpCode}`);
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-      return { success: true, messageId: 'dev-fallback' };
+      // Shorter timeout for first attempt (465), longer for fallback (587)
+      const timeoutMs = usePort587 ? 30000 : 15000;
+      
+      const sendMailPromise = transporter.sendMail(mailOptions);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error(`Timeout after ${timeoutMs/1000}s on port ${port}`)), timeoutMs)
+      );
+      
+      const info = await Promise.race([sendMailPromise, timeoutPromise]);
+      console.log(`[EMAIL] ✅ OTP sent successfully via port ${port} to ${toEmail}: ${info.messageId}`);
+      return { success: true, messageId: info.messageId };
+      
+    } catch (error) {
+      lastError = error;
+      const port = usePort587 ? 587 : 465;
+      console.error(`[EMAIL] ❌ Port ${port} failed:`, error.message);
+      
+      // If this was the last attempt (port 587), handle the error
+      if (usePort587) {
+        console.error('[EMAIL] ❌ Both ports (465 and 587) failed');
+        
+        // FALLBACK FOR DEVELOPMENT: If email fails, just log it and continue
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('\n⚠️  [DEV MODE FALLBACK] Email sending failed, but continuing...');
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+          console.log(`🔑 OTP Code for ${toEmail}: ${otpCode}`);
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+          return { success: true, messageId: 'dev-fallback' };
+        }
+        
+        // Production: throw error after all attempts failed
+        if (lastError.message.includes('timeout') || lastError.message.includes('Timeout')) {
+          throw new Error('Email service timeout. Please try again.');
+        } else if (lastError.message.includes('auth') || lastError.message.includes('Invalid')) {
+          throw new Error('Email configuration error. Please contact support.');
+        }
+        throw new Error('Failed to send email. Please try again later.');
+      }
+      // Continue to next port attempt
     }
-
-    // More specific error messages
-    if (error.message.includes('timeout')) {
-      throw new Error('Email service timeout. Please try again.');
-    } else if (error.message.includes('auth') || error.message.includes('Invalid')) {
-      throw new Error('Email configuration error. Please contact support.');
-    }
-    throw new Error('Failed to send email. Please try again later.');
   }
 };
 

@@ -121,11 +121,6 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, error }) =
       return;
     }
 
-    if (!turnstileReady) {
-      setValidationError('Please wait for security verification to load');
-      return;
-    }
-
     setOtpLoading(true);
     try {
       await authAPI.resendOTP(email);
@@ -341,7 +336,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, error }) =
               <button
                 type="button"
                 onClick={handleSendOTP}
-                disabled={otpLoading || !email.trim() || otpSent || !turnstileReady}
+                disabled={otpLoading || !email.trim() || otpSent}
                 className="px-5 py-3 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white rounded-lg font-semibold hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-xl whitespace-nowrap flex items-center gap-2"
               >
                 {otpLoading ? (
@@ -395,12 +390,12 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, error }) =
             )}
             
             {!otpSent && !turnstileReady && (
-              <div className="text-xs text-amber-600 flex items-center gap-1">
+              <div className="text-xs text-gray-500 flex items-center gap-1">
                 <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Loading security verification...
+                Loading security verification... (OTP can be sent anytime)
               </div>
             )}
           </div>
