@@ -11,17 +11,52 @@ import messageRoutes from './src/routes/messages.js';
 
 const app = express();
 
-// Middleware
+// Middleware - CORS must be first
 app.use(cors({
-  origin: config.nodeEnv === 'production' 
-    ? config.frontendUrl 
-    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
+  origin: (origin, callback) => {
+    const allowedOrigins = config.nodeEnv === 'production' 
+      ? (Array.isArray(config.frontendUrl) ? config.frontendUrl : [config.frontendUrl])
+      : [
+          'http://localhost:3000', 
+          'http://localhost:3001', 
+          'http://localhost:5173', 
+          'http://127.0.0.1:5173', 
+          'http://127.0.0.1:3000', 
+          'http://127.0.0.1:3001',
+          'https://teardrop-gamma.vercel.app'
+        ];
+    
+    // Allow requests with no origin (mobile apps, curl, etc)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.some(allowed => origin.includes(allowed.replace('https://', '')))) {
+      callback(null, true);
+    } else {
+      console.log('[CORS] Blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 hours
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// Body parsers - but NOT for file upload routes (multer handles those)
+app.use((req, res, next) => {
+  if (req.path.includes('/upload')) {
+    // Skip body parsing for upload routes - multer will handle it
+    return next();
+  }
+  express.json()(req, res, next);
+});
+app.use((req, res, next) => {
+  if (req.path.includes('/upload')) {
+    return next();
+  }
+  express.urlencoded({ extended: true })(req, res, next);
+});
 
 // Request logging middleware
 app.use((req, res, next) => {
