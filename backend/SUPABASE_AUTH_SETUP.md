@@ -42,11 +42,13 @@ Backend kemudian update database untuk mark email as verified dan generate JWT t
 
 Supabase akan mengirim email dengan format:
 ```
-Subject: Confirm Your Email
+Subject: Teardrop Chat Verification
 
-Your confirmation code is: 123456
+Use the verification code below to sign in.
 
-This code expires in 1 hour.
+[Your verification code: 123456]
+
+This code expires in 60 seconds.
 ```
 
 ## ⚙️ Konfigurasi Supabase Dashboard (WAJIB)
@@ -70,13 +72,71 @@ This code expires in 1 hour.
 3. Customize subject, body, dan expiry time
 4. Set OTP expiry (default 1 hour, bisa ganti jadi 5 menit)
 
-### Contoh Custom Template
+### Custom Template (Already Applied)
+
+Template email yang digunakan sekarang:
+
 ```html
-<h2>Welcome to Teardrop Chat! 💬</h2>
-<p>Your verification code is:</p>
-<h1>{{ .Token }}</h1>
-<p>This code expires in 60 minutes.</p>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Teardrop Chat Verification</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f9fafb;font-family:Arial,Helvetica,sans-serif;color:#111827;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding:40px 16px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="max-width:420px;background:#ffffff;border-radius:12px;padding:32px;box-shadow:0 10px 25px rgba(0,0,0,0.05);">
+            
+            <tr>
+              <td style="text-align:center;padding-bottom:24px;">
+                <h2 style="margin:0;font-size:20px;font-weight:600;">
+                  Teardrop Chat
+                </h2>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="font-size:14px;line-height:1.6;color:#374151;padding-bottom:20px;">
+                Use the verification code below to sign in.
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" style="padding:16px 0;">
+                <div style="font-size:32px;font-weight:700;letter-spacing:6px;color:#111827;">
+                  {{ .Token }}
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="font-size:13px;color:#6b7280;padding-top:16px;">
+                This code expires in <strong>60 seconds</strong>.
+                If you did not request this code, please ignore this email.
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding-top:32px;font-size:12px;color:#9ca3af;text-align:center;">
+                © Teardrop Chat
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
 ```
+
+**Note**: Template ini sudah di-apply di Supabase Dashboard dengan:
+- Clean, modern design
+- **60 seconds expiry** (sesuai frontend countdown)
+- Mobile-responsive
+- Professional styling
 
 ## 🔍 Testing
 
