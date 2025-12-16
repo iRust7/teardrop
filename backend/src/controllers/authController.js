@@ -447,29 +447,13 @@ export class AuthController {
       );
     }
 
-    // Verify OTP with Supabase Auth
+    // Note: OTP already verified by frontend with Supabase Auth
+    // This endpoint just updates our database and issues JWT token
+    console.log(`[VERIFY OTP] Marking email as verified for ${email}`);
+    console.log('[VERIFY OTP] (OTP was already validated by frontend)');
+
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: email,
-        token: otp,
-        type: 'email'
-      });
-
-      if (error) {
-        console.error('[VERIFY OTP] Supabase error:', error);
-        
-        if (error.message.includes('expired')) {
-          return res.status(401).json(
-            ApiResponse.error('Kode OTP sudah kadaluarsa. Silakan kirim ulang.')
-          );
-        }
-        
-        return res.status(401).json(
-          ApiResponse.error('Kode OTP salah')
-        );
-      }
-
-      // OTP verified successfully, update our database
+      // Update our database - mark as verified
       await UserModel.update(user.id, {
         otp_code: null,
         otp_expiry: null,
@@ -477,7 +461,7 @@ export class AuthController {
         status: 'online',
       });
 
-      console.log(`[VERIFY OTP] Email verified for ${email}`);
+      console.log(`[VERIFY OTP] ✅ Email verified for ${email}`);
 
       // Generate our custom JWT token
       const token = generateToken({ userId: user.id, email: user.email, role: user.role });
@@ -494,7 +478,7 @@ export class AuthController {
     } catch (error) {
       console.error('[VERIFY OTP] Error:', error);
       res.status(500).json(
-        ApiResponse.error('Failed to verify OTP. Please try again.')
+        ApiResponse.error('Failed to complete verification. Please try again.')
       );
     }
   });

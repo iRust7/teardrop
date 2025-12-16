@@ -187,7 +187,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, error }) =
 
     setLoading(true);
     try {
-      // First verify OTP with Supabase
+      // Step 1: Verify OTP with Supabase first
       const { error: verifyError } = await supabase.auth.verifyOtp({
         email: email,
         token: otpCode,
@@ -198,17 +198,23 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, error }) =
         throw new Error(verifyError.message || 'Invalid OTP code');
       }
 
-      // Then register user with backend
+      console.log('[REGISTER] ✅ OTP verified with Supabase');
+
+      // Step 2: Register user with backend (no OTP sending)
       await authAPI.register(username, email, password, turnstileToken || 'fallback');
+      console.log('[REGISTER] ✅ User created in backend');
       
-      // Verify with backend to get our custom JWT
+      // Step 3: Mark as verified in backend and get JWT token
+      // Backend will skip OTP validation since we already verified with Supabase
       const verifyResponse = await authAPI.verifyRegistrationOTP(email, otpCode);
+      console.log('[REGISTER] ✅ Email verified, got JWT token');
       
       // Store token and redirect
       localStorage.setItem('token', verifyResponse.token);
       localStorage.setItem('user', JSON.stringify(verifyResponse.user));
       window.location.reload();
     } catch (err: any) {
+      console.error('[REGISTER] ❌ Error:', err);
       setValidationError(err.response?.data?.message || err.message || 'Registration failed');
       // Reset Turnstile
       if (window.turnstile && widgetId.current) {
