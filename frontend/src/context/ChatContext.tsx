@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { Message, User, ChatState } from '../types';
 import { authAPI, usersAPI, messagesAPI } from '../utils/api';
 import { supabase } from '../utils/supabase';
+import { playNotificationSound, requestNotificationPermission } from '../utils/notifications';
 
 interface ChatContextType extends ChatState {
   sendMessage: (content: string, receiverId: string) => Promise<void>;
@@ -30,11 +31,19 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Check if user is already logged in
     const checkAuth = async () => {
+      setIsLoading(true);
       try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          setIsLoading(false);
+          return;
+        }
+
         const userData = await authAPI.getSession();
         if (userData && userData.user) {
           setCurrentUser(userData.user);
@@ -46,6 +55,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       } catch (error) {
         console.error('Auth check error:', error);
         setIsAuthenticated(false);
+        localStorage.removeItem('auth_token');
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -87,25 +99,20 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           table: 'messages',
         },
         (payload) => {
-          console.log('Message change received:', payload);
+          console.log('New message received:', payload);
           const newMessage = payload.new as any;
           
           // Only add if message involves current user
           if (newMessage.user_id === currentUser.id || newMessage.receiver_id === currentUser.id) {
-            setMessages((prev) => [...prev, {
-              id: newMessage.id,
-              userId: newMessage.user_id,
-              receiverId: newMessage.receiver_id,
-              username: 'User', // Will be updated on next load
-              content: newMessage.content,
-              timestamp: new Date(newMessage.created_at).getTime(),
-              hash: '',
-              type: 'text',
-              isRead: newMessage.is_read,
-            }]);
+            // Play notification sound if message is from someone else
+            if (newMessage.user_id !== currentUser.id) {
+              playNotificationSound();
+            }
             
-            // Reload to get complete data with usernames
-            setTimeout(() => loadMessages(), 500);
+            // Immediately reload messages to get complete data
+            loadMessages();
+            // Also reload users to update last seen
+            loadUsers();
           }
         }
       )
@@ -191,6 +198,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       setIsConnected(true);
       await loadUsers();
       await loadMessages();
+      // Request notification permission
+      requestNotificationPermission();
     } catch (error: any) {
       const message = error.response?.data?.error || error.message || 'Login failed';
       setAuthError(message);
@@ -271,7 +280,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         logout,
         selectUser,
         selectedUserId,
-      }}
+        isLoading,
+      } as any}
     >
       {children}
     </ChatContext.Provider>

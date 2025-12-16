@@ -67,14 +67,17 @@ const UserList: React.FC<UserListProps> = ({ users, currentUser }) => {
                   <div
                     key={user.id}
                     onClick={() => handleUserClick(user.id)}
-                    className={`flex items-center gap-3 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer ${
-                      selectedUserId === user.id ? 'bg-primary-100 border border-primary-300' : ''
+                    className={`flex items-center gap-3 p-2 rounded-lg hover:bg-white transition-all duration-200 cursor-pointer ${
+                      selectedUserId === user.id ? 'bg-primary-100 border border-primary-300 shadow-sm' : 'hover:shadow-sm'
                     }`}
                   >
                     <UserAvatar user={user} size="md" />
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900 truncate">{user.username}</div>
-                      <div className="text-xs text-green-600">Active now</div>
+                      <div className="text-xs text-green-600 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                        Active now
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -93,14 +96,17 @@ const UserList: React.FC<UserListProps> = ({ users, currentUser }) => {
                   <div
                     key={user.id}
                     onClick={() => handleUserClick(user.id)}
-                    className={`flex items-center gap-3 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer opacity-60 ${
-                      selectedUserId === user.id ? 'bg-primary-100 border border-primary-300' : ''
+                    className={`flex items-center gap-3 p-2 rounded-lg hover:bg-white transition-all duration-200 cursor-pointer opacity-60 hover:opacity-80 ${
+                      selectedUserId === user.id ? 'bg-primary-100 border border-primary-300 shadow-sm opacity-100' : 'hover:shadow-sm'
                     }`}
                   >
                     <UserAvatar user={user} size="md" />
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900 truncate">{user.username}</div>
-                      <div className="text-xs text-gray-500">Offline</div>
+                      <div className="text-xs text-gray-500 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                        Offline
+                      </div>
                     </div>
                   </div>
                 ))}

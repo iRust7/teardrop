@@ -6,10 +6,20 @@ import UserList from './UserList';
 
 const ChatWindow: React.FC = () => {
   const { messages, users, currentUser, typingUsers, isConnected, sendMessage, setTyping, logout, selectedUserId } = useChat();
+  const [isSending, setIsSending] = React.useState(false);
+
+  const selectedUser = selectedUserId ? users.find(u => u.id === selectedUserId) : null;
 
   const handleSendMessage = async (content: string) => {
-    if (selectedUserId) {
-      await sendMessage(content, selectedUserId);
+    if (selectedUserId && !isSending) {
+      try {
+        setIsSending(true);
+        await sendMessage(content, selectedUserId);
+      } catch (error) {
+        console.error('Failed to send message:', error);
+      } finally {
+        setIsSending(false);
+      }
     }
   };
 
@@ -39,34 +49,45 @@ const ChatWindow: React.FC = () => {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-4">
             <div className="text-2xl">💬</div>
             <div>
               <h1 className="text-xl font-bold text-gray-800">Teardrop Chat</h1>
-              <p className="text-sm text-gray-500">
-                {isConnected ? (
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    Connected
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-red-500 rounded-full" />
-                    Disconnected
-                  </span>
-                )}
-              </p>
+              {selectedUser ? (
+                <p className="text-sm text-gray-600 flex items-center gap-2">
+                  <span>Chatting with</span>
+                  <span className="font-semibold text-primary-600">{selectedUser.username}</span>
+                  <span className={`w-2 h-2 rounded-full ${
+                    selectedUser.status === 'online' ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                  }`} />
+                  <span className="text-xs">{selectedUser.status}</span>
+                </p>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  {isConnected ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                      Connected - Select a user to chat
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-red-500 rounded-full" />
+                      Disconnected
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="text-sm text-gray-600">
-              {users.filter(u => u.status === 'online').length} online
+            <div className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+              👥 {users.filter(u => u.status === 'online').length} online
             </div>
             <button
               onClick={handleLogout}
-              className="px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200 hover:border-red-300"
               title="Logout"
             >
               Logout
@@ -85,7 +106,8 @@ const ChatWindow: React.FC = () => {
         <MessageInput
           onSendMessage={handleSendMessage}
           onTyping={handleTyping}
-          disabled={!isConnected || !selectedUserId}
+          disabled={!isConnected || !selectedUserId || isSending}
+          isSending={isSending}
         />
       </div>
 
