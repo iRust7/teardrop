@@ -19,6 +19,29 @@ router.post(
   AuthController.login
 );
 
+// OAuth routes
+router.post(
+  '/google/callback',
+  rateLimit(10, 60000),
+  validateBody(['email']),
+  AuthController.googleCallback
+);
+
+// OTP routes
+router.post(
+  '/otp/send',
+  rateLimit(5, 60000), // 5 OTP requests per minute
+  validateBody(['email']),
+  AuthController.sendOTP
+);
+
+router.post(
+  '/otp/verify',
+  rateLimit(10, 60000),
+  validateBody(['email', 'otp']),
+  AuthController.verifyOTP
+);
+
 // Protected routes
 router.post('/logout', authenticate, AuthController.logout);
 router.get('/profile', authenticate, AuthController.getProfile);

@@ -200,4 +200,153 @@ export class AuthController {
       ApiResponse.success({ token }, 'Token refreshed successfully')
     );
   });
+
+  /**
+   * Google OAuth callback handler
+   */
+  static googleCallback = asyncHandler(async (req, res) => {
+    const { email, name, google_id, avatar_url } = req.body;
+
+    if (!email) {
+      return res.status(400).json(
+        ApiResponse.error('Email is required')
+      );
+    }
+
+    // Check if user exists
+    let user = await UserModel.findByEmail(email);
+
+    if (!user) {
+      // Create new user from Google OAuth
+      const username = name || email.split('@')[0];
+      user = await UserModel.create({
+        username,
+        email,
+        password_hash: '', // No password for OAuth users
+        google_id,
+        avatar_url,
+        status: 'online',
+        role: 'user',
+        email_verified: true, // Google accounts are pre-verified
+      });
+    } else {
+      // Update existing user
+      await UserModel.update(user.id, {
+        google_id,
+        avatar_url,
+        status: 'online',
+        email_verified: true,
+      });
+    }
+
+    // Generate token
+    const token = generateToken({ userId: user.id, email: user.email, role: user.role });
+
+    res.json(
+      ApiResponse.success(
+        {
+          user: sanitizeUser(user),
+          token,
+        },
+        'Google login successful'
+      )
+    );
+  });
+
+  /**
+   * Send OTP to email
+   */
+  static sendOTP = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json(
+        ApiResponse.error('Email is required')
+      );
+    }
+
+    // Check if user exists
+    const user = await UserModel.findByEmail(email);
+    if (!user) {
+      return res.status(404).json(
+        ApiResponse.error('User not found')
+      );
+    }
+
+    // Generate OTP (6 digits)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Save OTP to user record
+    await UserModel.update(user.id, {
+      otp_code: otp,
+      otp_expiry: otpExpiry.toISOString(),
+    });
+
+    // In production, send email here using SendGrid, Mailgun, etc.
+    // For demo, we'll log it
+    console.log(`[OTP] Code for ${email}: ${otp} (expires: ${otpExpiry})`);
+
+    res.json(
+      ApiResponse.success(
+        { email },
+        'OTP sent to your email'
+      )
+    );
+  });
+
+  /**
+   * Verify OTP and login
+   */
+  static verifyOTP = asyncHandler(async (req, res) => {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json(
+        ApiResponse.error('Email and OTP are required')
+      );
+    }
+
+    // Find user
+    const user = await UserModel.findByEmail(email);
+    if (!user) {
+      return res.status(404).json(
+        ApiResponse.error('User not found')
+      );
+    }
+
+    // Check OTP
+    if (!user.otp_code || user.otp_code !== otp) {
+      return res.status(401).json(
+        ApiResponse.error('Invalid OTP')
+      );
+    }
+
+    // Check expiry
+    if (new Date() > new Date(user.otp_expiry)) {
+      return res.status(401).json(
+        ApiResponse.error('OTP has expired')
+      );
+    }
+
+    // Clear OTP
+    await UserModel.update(user.id, {
+      otp_code: null,
+      otp_expiry: null,
+      status: 'online',
+    });
+
+    // Generate token
+    const token = generateToken({ userId: user.id, email: user.email, role: user.role });
+
+    res.json(
+      ApiResponse.success(
+        {
+          user: sanitizeUser(user),
+          token,
+        },
+        'OTP verified successfully'
+      )
+    );
+  });
 }

@@ -63,6 +63,27 @@ export const authAPI = {
     return response.data;
   },
 
+  googleCallback: async (email: string, name: string, google_id: string, avatar_url: string) => {
+    const response = await api.post('/auth/google/callback', { email, name, google_id, avatar_url });
+    if (response.data.data?.token) {
+      localStorage.setItem('auth_token', response.data.data.token);
+    }
+    return response.data.data;
+  },
+
+  sendOTP: async (email: string) => {
+    const response = await api.post('/auth/otp/send', { email });
+    return response.data;
+  },
+
+  verifyOTP: async (email: string, otp: string) => {
+    const response = await api.post('/auth/otp/verify', { email, otp });
+    if (response.data.data?.token) {
+      localStorage.setItem('auth_token', response.data.data.token);
+    }
+    return response.data.data;
+  },
+
   getSession: async () => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
