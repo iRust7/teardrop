@@ -75,40 +75,15 @@ export class AuthController {
       otp_expiry: null
     });
 
-    // Send OTP via Supabase Auth
-    try {
-      const { data, error } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: {
-          shouldCreateUser: true, // Required for OTP to work
-        }
-      });
-
-      if (error) {
-        console.error('[REGISTER] Supabase OTP error:', error);
-        // Rollback user creation if OTP fails
-        await UserModel.delete(user.id);
-        throw error;
-      }
-
-      console.log(`[REGISTER] OTP sent via Supabase to ${email}`);
-      
-      res.status(201).json(
-        ApiResponse.success(
-          { email, userId: user.id },
-          'Registration successful! Check your email for OTP verification code.'
-        )
-      );
-    } catch (error) {
-      console.error('[REGISTER] Failed to send OTP:', error);
-      
-      // Rollback user creation if email fails
-      await UserModel.delete(user.id);
-      
-      res.status(500).json(
-        ApiResponse.error('Failed to send verification email. Please try again.')
-      );
-    }
+    console.log(`[REGISTER] User created: ${email} (ID: ${user.id})`);
+    console.log('[REGISTER] OTP already sent by frontend via Supabase Auth');
+    
+    res.status(201).json(
+      ApiResponse.success(
+        { email, userId: user.id },
+        'User registered! Please verify your OTP code.'
+      )
+    )
   });
 
   /**
