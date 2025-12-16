@@ -10,15 +10,18 @@ const createTransporter = () => {
   const isProd = process.env.NODE_ENV === 'production';
   
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // true for 465, false for other ports
+    requireTLS: true,
     auth: {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_APP_PASSWORD,
     },
     // Longer timeouts for production
-    connectionTimeout: isProd ? 30000 : 10000, // 30s prod, 10s dev
-    greetingTimeout: isProd ? 15000 : 5000,    // 15s prod, 5s dev
-    socketTimeout: isProd ? 45000 : 15000,     // 45s prod, 15s dev
+    connectionTimeout: isProd ? 30000 : 20000, // 30s prod, 20s dev
+    greetingTimeout: isProd ? 15000 : 10000,    // 15s prod, 10s dev
+    socketTimeout: isProd ? 45000 : 30000,     // 45s prod, 30s dev
     // Additional config for reliability
     pool: true,
     maxConnections: 1,
@@ -245,7 +248,7 @@ Jika kamu tidak meminta kode ini, abaikan email ini.
     // Add timeout promise to prevent hanging
     // Longer timeout for production environment
     const isProd = process.env.NODE_ENV === 'production';
-    const timeoutMs = isProd ? 40000 : 15000; // 40s prod, 15s dev
+    const timeoutMs = isProd ? 40000 : 30000; // 40s prod, 30s dev
     
     const sendMailPromise = transporter.sendMail(mailOptions);
     const timeoutPromise = new Promise((_, reject) => 
