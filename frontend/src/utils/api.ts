@@ -8,7 +8,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true,
-  timeout: 30000, // 30 second timeout
+  timeout: 60000, // 60 second timeout for slow operations like email sending
 });
 
 // Retry logic for network errors

@@ -18,14 +18,19 @@ const createTransporter = () => {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_APP_PASSWORD,
     },
+    // Force IPv4 to avoid IPv6 connection issues
+    family: 4,
     // Longer timeouts for production
-    connectionTimeout: isProd ? 30000 : 20000, // 30s prod, 20s dev
-    greetingTimeout: isProd ? 15000 : 10000,    // 15s prod, 10s dev
-    socketTimeout: isProd ? 45000 : 30000,     // 45s prod, 30s dev
+    connectionTimeout: isProd ? 60000 : 30000, // 60s prod, 30s dev
+    greetingTimeout: isProd ? 30000 : 15000,    // 30s prod, 15s dev
+    socketTimeout: isProd ? 60000 : 45000,     // 60s prod, 45s dev
     // Additional config for reliability
     pool: true,
     maxConnections: 1,
     maxMessages: 3,
+    // Debug logging
+    logger: !isProd,
+    debug: !isProd
   });
 };
 
@@ -248,7 +253,7 @@ Jika kamu tidak meminta kode ini, abaikan email ini.
     // Add timeout promise to prevent hanging
     // Longer timeout for production environment
     const isProd = process.env.NODE_ENV === 'production';
-    const timeoutMs = isProd ? 40000 : 30000; // 40s prod, 30s dev
+    const timeoutMs = isProd ? 60000 : 45000; // 60s prod, 45s dev
     
     const sendMailPromise = transporter.sendMail(mailOptions);
     const timeoutPromise = new Promise((_, reject) => 
