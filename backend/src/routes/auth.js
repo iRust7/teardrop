@@ -14,7 +14,7 @@ router.post(
 
 router.post(
   '/login',
-  rateLimit(10, 60000),
+  rateLimit(20, 60000), // Increased from 10 to 20
   validateBody(['email', 'password']),
   AuthController.login
 );
@@ -22,14 +22,14 @@ router.post(
 // OTP routes for registration email verification
 router.post(
   '/verify-otp',
-  rateLimit(10, 60000),
+  rateLimit(15, 60000), // Increased from 10 to 15
   validateBody(['email', 'otp']),
   AuthController.verifyRegistrationOTP
 );
 
 router.post(
   '/resend-otp',
-  rateLimit(3, 60000), // 3 resend requests per minute
+  rateLimit(10, 60000), // Increased from 3 to 10 for better UX
   validateBody(['email']),
   AuthController.resendOTP
 );

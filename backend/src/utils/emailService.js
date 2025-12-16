@@ -25,59 +25,131 @@ export const sendOTPEmail = async (toEmail, otpCode) => {
     const mailOptions = {
       from: `"Teardrop Chat" <${process.env.GMAIL_USER}>`,
       to: toEmail,
-      subject: '🔐 Kode OTP Login Teardrop Chat',
+      subject: '✨ Your Verification Code - Teardrop Chat',
       html: `
         <!DOCTYPE html>
         <html>
         <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body {
-              font-family: Arial, sans-serif;
-              background-color: #f4f4f4;
+            * {
               margin: 0;
-              padding: 20px;
+              padding: 0;
+              box-sizing: border-box;
             }
-            .container {
+            body {
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              padding: 40px 20px;
+              line-height: 1.6;
+            }
+            .email-container {
               max-width: 600px;
               margin: 0 auto;
-              background-color: #ffffff;
-              border-radius: 10px;
-              padding: 30px;
-              box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+              background: #ffffff;
+              border-radius: 24px;
+              overflow: hidden;
+              box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             }
             .header {
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              padding: 50px 40px;
               text-align: center;
-              margin-bottom: 30px;
+              color: white;
+            }
+            .logo {
+              font-size: 48px;
+              margin-bottom: 15px;
+              animation: float 3s ease-in-out infinite;
+            }
+            @keyframes float {
+              0%, 100% { transform: translateY(0px); }
+              50% { transform: translateY(-10px); }
             }
             .header h1 {
-              color: #4F46E5;
-              margin: 0;
-              font-size: 28px;
+              font-size: 32px;
+              font-weight: 700;
+              margin-bottom: 10px;
+              letter-spacing: -0.5px;
             }
-            .otp-box {
-              background-color: #F3F4F6;
-              border: 2px dashed #4F46E5;
-              border-radius: 8px;
-              padding: 20px;
+            .header p {
+              font-size: 16px;
+              opacity: 0.95;
+              font-weight: 300;
+            }
+            .content {
+              padding: 50px 40px;
+            }
+            .greeting {
+              font-size: 18px;
+              color: #2d3748;
+              margin-bottom: 25px;
+            }
+            .otp-section {
+              background: linear-gradient(135deg, #f6f8fb 0%, #e9ecf5 100%);
+              border-radius: 16px;
+              padding: 40px;
               text-align: center;
-              margin: 30px 0;
+              margin: 35px 0;
+              border: 2px solid #e2e8f0;
+            }
+            .otp-label {
+              font-size: 14px;
+              color: #718096;
+              text-transform: uppercase;
+              letter-spacing: 1.5px;
+              font-weight: 600;
+              margin-bottom: 20px;
             }
             .otp-code {
-              font-size: 36px;
-              font-weight: bold;
-              color: #4F46E5;
-              letter-spacing: 8px;
-              margin: 10px 0;
+              font-size: 52px;
+              font-weight: 800;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              letter-spacing: 12px;
+              margin: 15px 0;
+              font-family: 'Courier New', monospace;
+            }
+            .otp-expires {
+              display: inline-block;
+              background: #fff;
+              color: #e53e3e;
+              padding: 10px 20px;
+              border-radius: 25px;
+              font-size: 13px;
+              font-weight: 600;
+              margin-top: 20px;
+              box-shadow: 0 4px 12px rgba(229, 62, 62, 0.15);
             }
             .message {
-              color: #6B7280;
-              line-height: 1.6;
+              color: #4a5568;
               font-size: 16px;
+              line-height: 1.8;
+              margin: 25px 0;
+            }
+            .security-notice {
+              background: #fff5f5;
+              border-left: 4px solid #fc8181;
+              padding: 20px;
+              border-radius: 8px;
+              margin: 30px 0;
+            }
+            .security-notice p {
+              color: #742a2a;
+              font-size: 14px;
+              line-height: 1.6;
+            }
+            .security-notice strong {
+              color: #c53030;
             }
             .footer {
-              margin-top: 30px;
-              padding-top: 20px;
-              border-top: 1px solid #E5E7EB;
+              background: #f7fafc;
+              padding: 40px;
+              text-align: center;
+              border-top: 1px solid #e2e8f0;
               text-align: center;
               color: #9CA3AF;
               font-size: 14px;
@@ -97,32 +169,47 @@ export const sendOTPEmail = async (toEmail, otpCode) => {
           </style>
         </head>
         <body>
-          <div class="container">
+          <div class="email-container">
             <div class="header">
-              <h1>💬 Teardrop Chat</h1>
+              <div class="logo">💬</div>
+              <h1>Teardrop Chat</h1>
+              <p>Secure Email Verification</p>
             </div>
             
-            <p class="message">Halo,</p>
-            <p class="message">Kamu menerima email ini karena meminta kode OTP untuk login ke Teardrop Chat.</p>
-            
-            <div class="otp-box">
-              <p style="margin: 0; color: #6B7280; font-size: 14px;">KODE OTP KAMU:</p>
-              <div class="otp-code">${otpCode}</div>
-              <p style="margin: 0; color: #6B7280; font-size: 14px;">Berlaku selama 10 menit</p>
+            <div class="content">
+              <div class="greeting">
+                Hello! 👋
+              </div>
+              
+              <p class="message">
+                Thank you for joining <strong>Teardrop Chat</strong>. 
+                To complete your registration, please use the verification code below:
+              </p>
+
+              <div class="otp-section">
+                <div class="otp-label">Your Verification Code</div>
+                <div class="otp-code">${otpCode}</div>
+                <div class="otp-expires">⏱ Expires in 10 minutes</div>
+              </div>
+
+              <p class="message">
+                Enter this code in the registration form to verify your email address and complete your account setup.
+              </p>
+
+              <div class="security-notice">
+                <p>
+                  <strong>🔒 Security Notice:</strong><br>
+                  Never share this code with anyone. Teardrop Chat will never ask you for this code via phone, email, or any other method. If you didn't request this code, please ignore this email.
+                </p>
+              </div>
             </div>
-            
-            <p class="message">Masukkan kode ini di halaman login untuk melanjutkan.</p>
-            
-            <div class="warning">
-              <p><strong>⚠️ Peringatan Keamanan:</strong></p>
-              <p>Jangan bagikan kode ini kepada siapapun. Tim Teardrop Chat tidak akan pernah meminta kode OTP kamu.</p>
-            </div>
-            
-            <p class="message">Jika kamu tidak meminta kode ini, abaikan email ini.</p>
-            
+
             <div class="footer">
-              <p>Email ini dikirim otomatis dari Teardrop Chat</p>
-              <p>© ${new Date().getFullYear()} Teardrop Chat. All rights reserved.</p>
+              <p class="footer-text" style="color: #a0aec0; font-size: 13px; line-height: 1.8; margin: 0;">
+                This is an automated message, please do not reply.<br>
+                <strong style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Teardrop Chat</strong> - Secure Messaging Platform<br>
+                © 2024 Teardrop Chat. All rights reserved.
+              </p>
             </div>
           </div>
         </body>

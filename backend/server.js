@@ -15,7 +15,12 @@ const app = express();
 app.use(cors({
   origin: (origin, callback) => {
     const allowedOrigins = config.nodeEnv === 'production' 
-      ? (Array.isArray(config.frontendUrl) ? config.frontendUrl : [config.frontendUrl])
+      ? [
+          config.frontendUrl,
+          'https://teardrop-gamma.vercel.app',
+          'https://teardrop-production.vercel.app',
+          'https://teardrop.vercel.app'
+        ].filter(Boolean).flat()
       : [
           'http://localhost:3000', 
           'http://localhost:3001', 

@@ -358,10 +358,30 @@ export class AuthController {
 
     // Check if user exists
     const user = await UserModel.findByEmail(email);
+    
+    // If user doesn't exist, just send OTP (for pre-registration)
     if (!user) {
-      return res.status(404).json(
-        ApiResponse.error('User not found.')
-      );
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Send OTP via Gmail
+      try {
+        const { sendOTPEmail } = await import('../utils/emailService.js');
+        await sendOTPEmail(email, otp);
+        
+        console.log(`[PRE-REGISTER OTP] Code sent to ${email}: ${otp}`);
+        
+        return res.status(200).json(
+          ApiResponse.success(
+            { email, message: 'OTP sent to email' },
+            'Verification code sent! Check your email.'
+          )
+        );
+      } catch (emailError) {
+        console.error('[PRE-REGISTER OTP] Email send failed:', emailError);
+        return res.status(500).json(
+          ApiResponse.error('Failed to send verification email. Please try again.')
+        );
+      }
     }
 
     // Check if already verified
