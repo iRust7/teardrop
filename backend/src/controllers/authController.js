@@ -389,9 +389,12 @@ export class AuthController {
           )
         );
       } catch (emailError) {
-        console.error('[PRE-REGISTER OTP] Email send failed:', emailError);
+        console.error('[PRE-REGISTER OTP] ❌ Email send failed:', emailError.message);
+        const errorMsg = emailError.message.includes('timeout') 
+          ? 'Email service is slow. Please wait a moment and try again.'
+          : 'Failed to send verification email. Please try again.';
         return res.status(500).json(
-          ApiResponse.error('Failed to send verification email. Please try again.')
+          ApiResponse.error(errorMsg)
         );
       }
     }
@@ -427,10 +430,14 @@ export class AuthController {
         )
       );
     } catch (emailError) {
-      console.error('[RESEND OTP] Email send failed:', emailError);
+      console.error('[RESEND OTP] ❌ Email send failed:', emailError.message);
+      
+      const errorMsg = emailError.message.includes('timeout') 
+        ? 'Email service is slow. Please wait a moment and try again.'
+        : 'Failed to send OTP. Please try again.';
       
       res.status(500).json(
-        ApiResponse.error('Failed to send OTP. Please try again.')
+        ApiResponse.error(errorMsg)
       );
     }
   });

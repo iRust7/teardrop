@@ -12,6 +12,10 @@ const createTransporter = () => {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_APP_PASSWORD,
     },
+    // Add timeout to prevent hanging
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 5000, // 5 seconds
+    socketTimeout: 15000, // 15 seconds
   });
 };
 
@@ -231,12 +235,24 @@ Jika kamu tidak meminta kode ini, abaikan email ini.
       `,
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`[EMAIL] OTP sent to ${toEmail}: ${info.messageId}`);
+    // Add timeout promise to prevent hanging
+    const sendMailPromise = transporter.sendMail(mailOptions);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Email send timeout after 15s')), 15000)
+    );
+    
+    const info = await Promise.race([sendMailPromise, timeoutPromise]);
+    console.log(`[EMAIL] ✅ OTP sent to ${toEmail}: ${info.messageId}`);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('[EMAIL] Failed to send OTP:', error);
-    throw new Error('Gagal mengirim email OTP');
+    console.error('[EMAIL] ❌ Failed to send OTP:', error.message);
+    // More specific error messages
+    if (error.message.includes('timeout')) {
+      throw new Error('Email service timeout. Please try again.');
+    } else if (error.message.includes('auth') || error.message.includes('Invalid')) {
+      throw new Error('Email configuration error. Please contact support.');
+    }
+    throw new Error('Failed to send email. Please try again later.');
   }
 };
 
