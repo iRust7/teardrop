@@ -53,22 +53,29 @@ This code expires in 60 seconds.
 
 ## ⚙️ Konfigurasi Supabase Dashboard (WAJIB)
 
-### Step 1: Enable Email OTP ⚠️
+### Step 1: Aktifkan Email OTP ⚠️
 
-**Ini WAJIB dilakukan agar OTP bisa dikirim (masih error: "Signups not allowed for otp"):**
+**Fix error "Signups not allowed for otp" dalam 1 menit:**
 
-1. Buka https://supabase.com/dashboard/project/bhnqnwsztprgssxekxvz
-2. Go to **Authentication** → **Providers** (menu di sidebar kiri)
-3. Cari **Email** provider di list
-4. Click **Email** untuk expand settings
-5. ✅ **Enable** toggle yang ada tulisan **"Enable Email OTP"** atau **"Enable sign-ups"**
-6. Pastikan **"Confirm email"** juga enabled (untuk verifikasi)
-7. **SAVE CHANGES** - tombol di bawah form
+1. **Buka:** https://supabase.com/dashboard/project/bhnqnwsztprgssxekxvz
+2. **Masuk ke:** Authentication → Sign In / Providers
+3. **Klik Email** (untuk expand settings)
+4. **Pastikan kondisi ini:**
+   - ✅ **Enable Email provider** = ON (toggle hijau)
+   - ✅ **Email OTP Expiration** MUNCUL di form (misal: 60 atau 3600 seconds)
+   - ✅ **Confirm email** = ON (opsional tapi disarankan)
+5. **Klik SAVE** (penting!)
 
-**Screenshot location:**
-- Dashboard → Authentication (🔐 icon) → Providers → Email
+### 💡 Catatan Penting:
 
-**Kalau error "Signups not allowed for otp"** berarti Email OTP belum di-enable!
+**Di UI Supabase terbaru:**
+- ❌ TIDAK ADA toggle terpisah "Enable Email OTP"
+- ✅ OTP aktif secara otomatis jika **Email provider ON** + **field "Email OTP Expiration" muncul**
+- Kalau field **Email OTP Expiration** terlihat di form, berarti OTP sudah AKTIF
+
+**Kalau masih error "otp_disabled":**
+1. Email provider belum ON, atau
+2. Perubahan belum di-SAVE (klik tombol Save!)
 
 ### Step 2: Configure Email Settings (Opsional)
 

@@ -23,11 +23,12 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
 async function testOTP() {
   try {
     console.log(`📧 Sending OTP to: ${testEmail}`);
+    console.log('🔍 Testing with shouldCreateUser: true first...\n');
     
     const { data, error } = await supabase.auth.signInWithOtp({
       email: testEmail,
       options: {
-        shouldCreateUser: false, // Don't create Supabase user
+        shouldCreateUser: true, // Try with true first
       }
     });
 

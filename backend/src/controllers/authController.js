@@ -80,7 +80,7 @@ export class AuthController {
       const { data, error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          shouldCreateUser: false, // We handle user creation separately
+          shouldCreateUser: true, // Required for OTP to work
         }
       });
 
@@ -419,7 +419,7 @@ export class AuthController {
       const { data, error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          shouldCreateUser: false,
+          shouldCreateUser: true,
         }
       });
 
