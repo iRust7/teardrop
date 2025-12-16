@@ -63,7 +63,7 @@ export class MessageModel {
       .limit(limit);
 
     if (error) throw error;
-    return data;
+    return data.reverse();
   }
 
   /**

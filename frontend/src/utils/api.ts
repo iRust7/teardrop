@@ -61,10 +61,13 @@ export const authAPI = {
       console.log('[AUTH] Session valid:', response.data);
       // Return in same format as login/register
       return { user: response.data.data };
-    } catch (error) {
+    } catch (error: any) {
       console.error('[AUTH] Session validation failed:', error);
-      localStorage.removeItem('auth_token');
-      return null;
+      // Only clear token if it's an auth error (401/403)
+      if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+        localStorage.removeItem('auth_token');
+      }
+      throw error;
     }
   },
 };

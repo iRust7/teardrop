@@ -117,32 +117,41 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         }
 
         // Validate session with backend
-        const userData = await authAPI.getSession();
-        console.log('[APP] Session data:', userData);
-        
-        if (userData && userData.user) {
-          console.log('[APP] Session valid, user authenticated:', userData.user.username);
-          setCurrentUser(userData.user);
-          setIsAuthenticated(true);
-          setIsConnected(true);
-          // Cache user data for instant restoration
-          localStorage.setItem('cached_user', JSON.stringify(userData.user));
-          await loadUsers();
-          await loadMessages();
-        } else {
-          console.log('[APP] Session invalid, clearing data');
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('cached_user');
-          setCurrentUser(null);
-          setIsAuthenticated(false);
-          setIsConnected(false);
+        try {
+          const userData = await authAPI.getSession();
+          console.log('[APP] Session data:', userData);
+          
+          if (userData && userData.user) {
+            console.log('[APP] Session valid, user authenticated:', userData.user.username);
+            setCurrentUser(userData.user);
+            setIsAuthenticated(true);
+            setIsConnected(true);
+            // Cache user data for instant restoration
+            localStorage.setItem('cached_user', JSON.stringify(userData.user));
+            await loadUsers();
+            await loadMessages();
+          }
+        } catch (apiError) {
+          console.error('[APP] API Session check failed:', apiError);
+          // If token is gone (removed by api.ts on 401), then logout
+          if (!localStorage.getItem('auth_token')) {
+             console.log('[APP] Token invalid, logging out');
+             localStorage.removeItem('cached_user');
+             setCurrentUser(null);
+             setIsAuthenticated(false);
+             setIsConnected(false);
+          } else {
+             console.log('[APP] Network error or server down, keeping cached session');
+             // Keep authenticated if we have cached user
+             if (cachedUser) {
+                setIsAuthenticated(true);
+                setIsConnected(false); // Mark as disconnected but logged in
+             }
+          }
         }
       } catch (error) {
         console.error('[APP] Auth check error:', error);
-        setIsAuthenticated(false);
-        setIsConnected(false);
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('cached_user');
+        // Don't aggressively clear everything on general errors
       } finally {
         setIsLoading(false);
       }
@@ -196,13 +205,31 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           
           // Only add if message involves current user
           if (newMessage.user_id === currentUser.id || newMessage.receiver_id === currentUser.id) {
-            console.log('[REALTIME] Message is for current user, reloading...');
+            console.log('[REALTIME] Message is for current user, updating state...');
             
             // Play notification sound if message is from someone else
             if (newMessage.user_id !== currentUser.id) {
               console.log('[REALTIME] Playing notification sound');
               playNotificationSound();
             }
+
+            // Optimistic update to ensure immediate feedback
+            setMessages((prev) => {
+              if (prev.some(m => m.id === newMessage.id)) return prev;
+              
+              const optimisiticMessage: Message = {
+                id: newMessage.id,
+                userId: newMessage.user_id,
+                receiverId: newMessage.receiver_id,
+                username: newMessage.user_id === currentUser.id ? currentUser.username : '...', // Placeholder until reload
+                content: newMessage.content,
+                timestamp: new Date(newMessage.created_at).getTime(),
+                hash: '',
+                type: 'text',
+                isRead: newMessage.is_read
+              };
+              return [...prev, optimisiticMessage];
+            });
             
             // Immediately reload messages to get complete data
             loadMessages();
