@@ -33,16 +33,24 @@ const ChatWindow: React.FC = () => {
     }
   };
 
-  // Filter messages for selected conversation
-  const filteredMessages = selectedUserId 
-    ? messages.filter(m => {
-        // Show messages where current user is sender and selected user is receiver
-        // OR selected user is sender and current user is receiver
-        const isFromCurrentToSelected = m.userId === currentUser?.id && m.receiverId === selectedUserId;
-        const isFromSelectedToCurrent = m.userId === selectedUserId && m.receiverId === currentUser?.id;
-        return isFromCurrentToSelected || isFromSelectedToCurrent;
-      })
-    : [];
+  // Filter messages for selected conversation - useMemo to prevent unnecessary recalculations
+  const filteredMessages = React.useMemo(() => {
+    if (!selectedUserId || !currentUser) {
+      console.log('[CHAT WINDOW] No selected user or current user');
+      return [];
+    }
+    
+    const filtered = messages.filter(m => {
+      // Show messages where current user is sender and selected user is receiver
+      // OR selected user is sender and current user is receiver
+      const isFromCurrentToSelected = m.userId === currentUser.id && m.receiverId === selectedUserId;
+      const isFromSelectedToCurrent = m.userId === selectedUserId && m.receiverId === currentUser.id;
+      return isFromCurrentToSelected || isFromSelectedToCurrent;
+    });
+    
+    console.log('[CHAT WINDOW] Filtered messages for', selectedUserId, ':', filtered.length, 'out of', messages.length);
+    return filtered;
+  }, [messages, selectedUserId, currentUser]);
 
   return (
     <div className="flex h-screen bg-white">

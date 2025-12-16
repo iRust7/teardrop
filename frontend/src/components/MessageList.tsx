@@ -10,13 +10,21 @@ interface MessageListProps {
 
 const MessageList: React.FC<MessageListProps> = ({ messages, currentUser, typingUsers }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevMessageCountRef = useRef(messages.length);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
-    scrollToBottom();
+    console.log('[MESSAGE LIST] Messages updated:', messages.length, 'messages');
+    
+    // Only scroll if new messages were added
+    if (messages.length > prevMessageCountRef.current) {
+      console.log('[MESSAGE LIST] New messages detected, scrolling to bottom');
+      scrollToBottom();
+    }
+    prevMessageCountRef.current = messages.length;
   }, [messages]);
 
   const shouldShowAvatar = (index: number): boolean => {
@@ -41,7 +49,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUser, typing
         <>
           {messages.map((message, index) => (
             <MessageItem
-              key={message.id}
+              key={`${message.id}-${message.timestamp}`}
               message={message}
               isOwnMessage={message.userId === currentUser?.id}
               showAvatar={shouldShowAvatar(index)}

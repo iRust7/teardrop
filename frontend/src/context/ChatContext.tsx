@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { Message, User, ChatState } from '../types';
 import { authAPI, usersAPI, messagesAPI } from '../utils/api';
 import { supabase } from '../utils/supabase';
@@ -40,32 +40,57 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       setIsLoading(true);
       try {
         const token = localStorage.getItem('auth_token');
+        const cachedUser = localStorage.getItem('cached_user');
         console.log('[APP] Token exists:', !!token);
+        console.log('[APP] Cached user exists:', !!cachedUser);
         
         if (!token) {
           console.log('[APP] No token, showing login');
+          localStorage.removeItem('cached_user');
           setIsLoading(false);
           return;
         }
 
+        // Restore user from cache immediately for better UX
+        if (cachedUser) {
+          try {
+            const parsedUser = JSON.parse(cachedUser);
+            console.log('[APP] Restoring cached user:', parsedUser.username);
+            setCurrentUser(parsedUser);
+            setIsAuthenticated(true);
+            setIsConnected(true);
+          } catch (e) {
+            console.error('[APP] Failed to parse cached user:', e);
+          }
+        }
+
+        // Validate session with backend
         const userData = await authAPI.getSession();
         console.log('[APP] Session data:', userData);
         
         if (userData && userData.user) {
-          console.log('[APP] User authenticated:', userData.user.username);
+          console.log('[APP] Session valid, user authenticated:', userData.user.username);
           setCurrentUser(userData.user);
           setIsAuthenticated(true);
           setIsConnected(true);
+          // Cache user data for instant restoration
+          localStorage.setItem('cached_user', JSON.stringify(userData.user));
           await loadUsers();
           await loadMessages();
         } else {
-          console.log('[APP] No user data, clearing token');
+          console.log('[APP] Session invalid, clearing data');
           localStorage.removeItem('auth_token');
+          localStorage.removeItem('cached_user');
+          setCurrentUser(null);
+          setIsAuthenticated(false);
+          setIsConnected(false);
         }
       } catch (error) {
         console.error('[APP] Auth check error:', error);
         setIsAuthenticated(false);
+        setIsConnected(false);
         localStorage.removeItem('auth_token');
+        localStorage.removeItem('cached_user');
       } finally {
         setIsLoading(false);
       }
@@ -92,16 +117,20 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   // Real-time subscription for messages
   useEffect(() => {
-    if (!isAuthenticated || !currentUser) return;
+    if (!isAuthenticated || !currentUser) {
+      console.log('[REALTIME] Not authenticated or no current user, skipping subscription');
+      return;
+    }
 
     // Initial load
+    console.log('[REALTIME] Initial load for user:', currentUser.username);
     loadMessages();
     loadUsers();
 
     // Subscribe to new messages (messages sent TO or FROM current user)
     console.log('[REALTIME] Setting up message subscription for user:', currentUser.username);
     const messagesChannel = supabase
-      .channel('messages_channel')
+      .channel(`messages_channel_${currentUser.id}`)
       .on(
         'postgres_changes',
         {
@@ -133,12 +162,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         }
       )
       .subscribe((status) => {
-        console.log('[REALTIME] Subscription status:', status);
+        console.log('[REALTIME] Message subscription status:', status);
       });
 
     // Subscribe to user status changes
     const usersChannel = supabase
-      .channel('users_channel')
+      .channel(`users_channel_${currentUser.id}`)
       .on(
         'postgres_changes',
         {
@@ -147,54 +176,62 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           table: 'users',
         },
         (payload) => {
-          console.log('User status change:', payload);
+          console.log('[REALTIME] User status change:', payload);
           const updatedUser = payload.new as any;
           
           setUsers((prev) =>
             prev.map((u) =>
               u.id === updatedUser.id
-                ? { ...u, status: updatedUser.status }
+                ? { ...u, status: updatedUser.status, email: updatedUser.email, username: updatedUser.username }
                 : u
             )
           );
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[REALTIME] User subscription status:', status);
+      });
 
     return () => {
+      console.log('[REALTIME] Cleaning up subscriptions');
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(usersChannel);
     };
-  }, [isAuthenticated, currentUser]);
+  }, [isAuthenticated, currentUser, loadMessages, loadUsers]);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       console.log('[USERS] Loading users...');
       const fetchedUsers = await usersAPI.getAllUsers();
       console.log('[USERS] Fetched users:', fetchedUsers?.length || 0);
       if (fetchedUsers && Array.isArray(fetchedUsers)) {
-        setUsers(fetchedUsers.map((u: any) => ({
+        const mappedUsers = fetchedUsers.map((u: any) => ({
           id: u.id,
           username: u.username,
           email: u.email,
           avatar: u.avatar_url,
-          status: u.status || 'offline', // Default offline, akan ter-update dari database
-        })));
+          status: u.status || 'offline',
+        }));
+        setUsers(mappedUsers);
+        console.log('[USERS] Users state updated');
       }
     } catch (error) {
       console.error('Error loading users:', error);
     }
-  };
+  }, []);
 
-  const loadMessages = async () => {
-    if (!currentUser) return;
+  const loadMessages = useCallback(async () => {
+    if (!currentUser) {
+      console.log('[MESSAGES] No current user, skipping load');
+      return;
+    }
     
     try {
-      console.log('[MESSAGES] Loading messages for user:', currentUser.username);
+      console.log('[MESSAGES] Loading messages for user:', currentUser.username, 'ID:', currentUser.id);
       const fetchedMessages = await messagesAPI.getMessages(currentUser.id);
       console.log('[MESSAGES] Fetched messages:', fetchedMessages?.length || 0);
       if (fetchedMessages && Array.isArray(fetchedMessages)) {
-        setMessages(fetchedMessages.map((m: any) => ({
+        const mappedMessages = fetchedMessages.map((m: any) => ({
           id: m.id,
           userId: m.user_id,
           receiverId: m.receiver_id,
@@ -204,25 +241,38 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           hash: '',
           type: 'text',
           isRead: m.is_read,
-        })));
+        }));
+        console.log('[MESSAGES] Setting messages state with', mappedMessages.length, 'messages');
+        setMessages(mappedMessages);
       }
     } catch (error) {
       console.error('Error loading messages:', error);
     }
-  };
+  }, [currentUser]);
 
   const login = async (email: string, password: string) => {
     try {
       setAuthError(null);
+      console.log('[LOGIN] Attempting login for:', email);
       const { user } = await authAPI.login(email, password);
+      console.log('[LOGIN] Login successful, user:', user.username);
+      
+      // Cache user data immediately
+      localStorage.setItem('cached_user', JSON.stringify(user));
+      
       setCurrentUser(user);
       setIsAuthenticated(true);
       setIsConnected(true);
+      
+      console.log('[LOGIN] Loading users and messages...');
       await loadUsers();
       await loadMessages();
+      
       // Request notification permission
       requestNotificationPermission();
+      console.log('[LOGIN] Login complete');
     } catch (error: any) {
+      console.error('[LOGIN] Login error:', error);
       const message = error.response?.data?.error || error.message || 'Login failed';
       setAuthError(message);
       throw new Error(message);
@@ -232,12 +282,22 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const register = async (username: string, email: string, password: string) => {
     try {
       setAuthError(null);
+      console.log('[REGISTER] Attempting registration for:', username);
       const { user } = await authAPI.register(username, email, password);
+      console.log('[REGISTER] Registration successful, user:', user.username);
+      
+      // Cache user data immediately
+      localStorage.setItem('cached_user', JSON.stringify(user));
+      
       setCurrentUser(user);
       setIsAuthenticated(true);
       setIsConnected(true);
+      
       await loadUsers();
+      await loadMessages();
+      console.log('[REGISTER] Registration complete');
     } catch (error: any) {
+      console.error('[REGISTER] Registration error:', error);
       const message = error.response?.data?.error || error.message || 'Registration failed';
       setAuthError(message);
       throw new Error(message);
@@ -246,33 +306,55 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
+      console.log('[LOGOUT] Logging out...');
       await authAPI.logout();
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('[LOGOUT] Logout error:', error);
     } finally {
+      // Clear all data
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('cached_user');
       setIsAuthenticated(false);
       setCurrentUser(null);
       setMessages([]);
       setUsers([]);
       setIsConnected(false);
+      setSelectedUserId(null);
+      console.log('[LOGOUT] Logout complete');
     }
   };
 
   const sendMessage = async (content: string, receiverId: string) => {
     if (!currentUser || !content.trim()) return;
 
-    console.log('[CHAT] Sending message to:', receiverId);
+    console.log('[CHAT] Sending message to:', receiverId, 'Content:', content.substring(0, 50));
     try {
       const result = await messagesAPI.createMessage({
         content: content.trim(),
         receiver_id: receiverId,
       });
-      console.log('[CHAT] Message sent successfully:', result);
+      console.log('[CHAT] Message sent successfully, ID:', result?.id);
 
-      // Reload messages immediately
-      await loadMessages();
+      // Add optimistic update - add message immediately to UI
+      const newMessage: Message = {
+        id: result?.id || `temp-${Date.now()}`,
+        userId: currentUser.id,
+        receiverId: receiverId,
+        username: currentUser.username,
+        content: content.trim(),
+        timestamp: Date.now(),
+        hash: '',
+        type: 'text',
+        isRead: false,
+      };
+      
+      console.log('[CHAT] Adding message optimistically to UI');
+      setMessages(prev => [...prev, newMessage]);
+      
+      // Reload messages to get complete data from server
+      setTimeout(() => loadMessages(), 500);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('[CHAT] Error sending message:', error);
       throw error;
     }
   };

@@ -12,8 +12,18 @@ const UserList: React.FC<UserListProps> = ({ users, currentUser }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { selectUser, selectedUserId } = useChat();
 
-  const onlineUsers = users.filter(u => u.status === 'online' && u.id !== currentUser?.id);
-  const offlineUsers = users.filter(u => u.status !== 'online' && u.id !== currentUser?.id);
+  const onlineUsers = React.useMemo(() => 
+    users.filter(u => u.status === 'online' && u.id !== currentUser?.id),
+    [users, currentUser]
+  );
+  const offlineUsers = React.useMemo(() => 
+    users.filter(u => u.status !== 'online' && u.id !== currentUser?.id),
+    [users, currentUser]
+  );
+
+  React.useEffect(() => {
+    console.log('[USER LIST] Users updated - Online:', onlineUsers.length, 'Offline:', offlineUsers.length);
+  }, [onlineUsers.length, offlineUsers.length]);
 
   const handleUserClick = (userId: string) => {
     selectUser(userId);
