@@ -142,7 +142,12 @@ export class MessageController {
           type: req.file.mimetype,
           url: urlData.publicUrl,
           path: fileName,
+          hash: req.body.file_hash || null, // SHA-256 hash for integrity
         };
+        
+        if (req.body.file_hash) {
+          console.log('[FILE UPLOAD] Hash received:', req.body.file_hash.substring(0, 16) + '...');
+        }
 
         const message = await MessageModel.create({
           user_id,
