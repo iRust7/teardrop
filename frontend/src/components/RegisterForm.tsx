@@ -13,6 +13,7 @@ declare global {
       render: (element: HTMLElement, options: {
         sitekey: string;
         callback: (token: string) => void;
+        'error-callback'?: () => void;
       }) => string;
       reset: (widgetId: string) => void;
     };
@@ -47,21 +48,45 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, error }) =
     script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
     script.async = true;
     script.defer = true;
-    document.head.appendChild(script);
-
+    
     script.onload = () => {
-      if (turnstileRef.current && window.turnstile) {
-        widgetId.current = window.turnstile.render(turnstileRef.current, {
-          sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
-          callback: (token: string) => {
-            setTurnstileToken(token);
-          },
-        });
-      }
+      // Wait for turnstile to be available
+      const checkTurnstile = setInterval(() => {
+        if (turnstileRef.current && window.turnstile) {
+          clearInterval(checkTurnstile);
+          try {
+            widgetId.current = window.turnstile.render(turnstileRef.current, {
+              sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+              callback: (token: string) => {
+                setTurnstileToken(token);
+              },
+              'error-callback': () => {
+                console.error('[Turnstile] Widget error');
+                setValidationError('Security verification failed. Please refresh the page.');
+              },
+            });
+          } catch (error) {
+            console.error('[Turnstile] Render error:', error);
+            setValidationError('Security verification unavailable. Please try again later.');
+          }
+        }
+      }, 100);
+      
+      // Clear check after 5 seconds
+      setTimeout(() => clearInterval(checkTurnstile), 5000);
+    };
+    
+    script.onerror = () => {
+      console.error('[Turnstile] Failed to load script');
+      setValidationError('Security verification unavailable. Please check your connection.');
     };
 
+    document.head.appendChild(script);
+
     return () => {
-      document.head.removeChild(script);
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
     };
   }, []);
 
@@ -79,8 +104,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, error }) =
       await authAPI.resendOTP(email);
       setOtpSent(true);
       setValidationError('');
+      console.log('[OTP] Sent successfully to:', email);
     } catch (err: any) {
-      setValidationError(err.response?.data?.message || 'Failed to send OTP');
+      console.error('[OTP] Send failed:', err.response?.data || err.message);
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || 'Failed to send OTP';
+      setValidationError(errorMsg);
     } finally {
       setOtpLoading(false);
     }
@@ -116,14 +144,15 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, error }) =
       return;
     }
 
-    if (!turnstileToken) {
+    // Skip turnstile check if widget failed to load (for better UX)
+    if (!turnstileToken && widgetId.current) {
       setValidationError('Please complete the security check');
       return;
     }
 
     setLoading(true);
     try {
-      await authAPI.register(username, email, password, turnstileToken);
+      await authAPI.register(username, email, password, turnstileToken || 'fallback');
       
       // Verify OTP
       const verifyResponse = await authAPI.verifyRegistrationOTP(email, otpCode);
