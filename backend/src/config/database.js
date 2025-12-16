@@ -31,7 +31,9 @@ export const supabase = createClient(
 
 export const config = {
   port: process.env.PORT || 3001,
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  frontendUrl: process.env.FRONTEND_URL 
+    ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+    : ['http://localhost:3000'],
   jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-this',
   nodeEnv: process.env.NODE_ENV || 'development',
   supabaseUrl: process.env.SUPABASE_URL,
