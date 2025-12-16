@@ -59,8 +59,7 @@ VITE_API_URL=http://localhost:3002/api
 ## ✨ Features
 
 - 💬 Real-time messaging with Supabase Realtime
-- 🔐 **Google OAuth Login** - Sign in with your Google account
-- 📧 **OTP Email Verification** - Magic link authentication
+- � **OTP Email Login** - 6-digit code sent via Gmail
 - 📎 File sharing (images, documents) with Supabase Storage
 - 😊 Emoji picker with 24 common emojis
 - 👥 User list with online/offline status
@@ -84,11 +83,8 @@ VITE_API_URL=http://localhost:3002/api
 ### 1. Email & Password
 Traditional login with hashed passwords
 
-### 2. Google OAuth
-One-click login with Google account - See [OAUTH_SETUP.md](OAUTH_SETUP.md)
-
-### 3. OTP Email (Magic Link)
-Passwordless login via email verification
+### 2. OTP Email via Gmail
+Passwordless login with 6-digit OTP code sent via Gmail - See [GMAIL_OTP_SETUP.md](GMAIL_OTP_SETUP.md)
 
 ## 📡 API Endpoints
 
@@ -96,9 +92,8 @@ Passwordless login via email verification
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - Login with email/password
 - `POST /api/auth/logout` - Logout
-- `POST /api/auth/google/callback` - **Handle Google OAuth** 
-- `POST /api/auth/otp/send` - **Send OTP to email**
-- `POST /api/auth/otp/verify` - **Verify OTP code**
+- `POST /api/auth/otp/send` - **Send OTP code via Gmail**
+- `POST /api/auth/otp/verify` - **Verify OTP code and login**
 
 ### Users
 - `GET /api/users` - Get all users
@@ -146,18 +141,9 @@ npm run dev     # Start dev server
 npm run build   # Build for production
 ```
 
-## 🚀 Quick Setup for OAuth & OTP
+## 🚀 Quick Setup for OTP Email
 
-### Google OAuth Setup
-See **[OAUTH_SETUP.md](OAUTH_SETUP.md)** for detailed instructions.
-
-Quick steps:
-1. Run database migration: `backend/database/add-oauth-otp-support.sql`
-2. Configure Google OAuth in Supabase Dashboard
-3. Get credentials from Google Cloud Console
-4. Test with Gmail account
-
-### OTP Email Setup  
+### Gmail OTP Setup  
 See **[GMAIL_OTP_SETUP.md](GMAIL_OTP_SETUP.md)** for step-by-step guide.
 
 Quick steps:
