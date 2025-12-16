@@ -53,17 +53,22 @@ This code expires in 60 seconds.
 
 ## ⚙️ Konfigurasi Supabase Dashboard (WAJIB)
 
-### Step 1: Enable Email OTP
+### Step 1: Enable Email OTP ⚠️
 
-**Ini WAJIB dilakukan agar OTP bisa dikirim:**
+**Ini WAJIB dilakukan agar OTP bisa dikirim (masih error: "Signups not allowed for otp"):**
 
-1. Buka [Supabase Dashboard](https://supabase.com/dashboard)
-2. Pilih project: `bhnqnwsztprgssxekxvz` (teardrop-chat)
-3. Go to **Authentication** → **Providers**
-4. Scroll ke **Email** provider
-5. Enable toggle **"Enable Email provider"**
-6. Enable toggle **"Enable Email OTP"** atau **"Confirm email"**
-7. **Save** changes
+1. Buka https://supabase.com/dashboard/project/bhnqnwsztprgssxekxvz
+2. Go to **Authentication** → **Providers** (menu di sidebar kiri)
+3. Cari **Email** provider di list
+4. Click **Email** untuk expand settings
+5. ✅ **Enable** toggle yang ada tulisan **"Enable Email OTP"** atau **"Enable sign-ups"**
+6. Pastikan **"Confirm email"** juga enabled (untuk verifikasi)
+7. **SAVE CHANGES** - tombol di bawah form
+
+**Screenshot location:**
+- Dashboard → Authentication (🔐 icon) → Providers → Email
+
+**Kalau error "Signups not allowed for otp"** berarti Email OTP belum di-enable!
 
 ### Step 2: Configure Email Settings (Opsional)
 
@@ -160,7 +165,7 @@ Register user di: https://teardrop-gamma.vercel.app
 4. Rate limit: max 4 OTP per hour per email
 
 ### OTP Invalid?
-- OTP expired (default 1 hour)
+- OTP expired (60 seconds configured, tapi Supabase default 1 hour - customize di dashboard)
 - OTP sudah dipakai
 - Request OTP baru
 
