@@ -3,6 +3,7 @@ import React, { useState, useRef, KeyboardEvent } from 'react';
 interface MessageInputProps {
   onSendMessage: (content: string) => void;
   onTyping: (isTyping: boolean) => void;
+  onFileUploaded?: () => void; // Callback when file is uploaded
   receiverId?: string;
   disabled?: boolean;
   isSending?: boolean;
@@ -11,6 +12,7 @@ interface MessageInputProps {
 const MessageInput: React.FC<MessageInputProps> = ({
   onSendMessage,
   onTyping,
+  onFileUploaded,
   receiverId,
   disabled = false,
   isSending = false,
@@ -86,11 +88,24 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
     setUploadingFile(true);
     try {
+      // Generate file hash for integrity verification
+      console.log('[FILE] Generating hash for:', file.name);
+      const { hashFile } = await import('../utils/hash');
+      const fileHash = await hashFile(file);
+      console.log('[FILE] Hash generated:', fileHash.substring(0, 16) + '...');
+      
       // Import dynamically to avoid circular dependency
       const { messagesAPI } = await import('../utils/api');
-      await messagesAPI.sendFile(file, receiverId, message.trim());
+      const result = await messagesAPI.sendFile(file, receiverId, message.trim(), fileHash);
+      console.log('[FILE] Upload successful with hash:', result);
       setMessage('');
       onTyping(false);
+      
+      // Trigger callback to refresh messages immediately
+      if (onFileUploaded) {
+        console.log('[FILE] Triggering onFileUploaded callback');
+        onFileUploaded();
+      }
     } catch (error) {
       console.error('Error uploading file:', error);
       alert('Failed to upload file. Please try again.');

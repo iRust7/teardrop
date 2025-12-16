@@ -114,6 +114,11 @@ const ChatWindow: React.FC = () => {
         <MessageInput
           onSendMessage={handleSendMessage}
           onTyping={handleTyping}
+          onFileUploaded={() => {
+            console.log('[CHAT WINDOW] File uploaded, refreshing messages');
+            // Force refresh messages from context
+            window.dispatchEvent(new CustomEvent('fileUploaded'));
+          }}
           receiverId={selectedUserId || undefined}
           disabled={!isConnected || isSending}
           isSending={isSending}

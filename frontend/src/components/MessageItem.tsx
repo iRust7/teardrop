@@ -40,7 +40,14 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isOwnMessage, showAv
       >
         <span className="text-2xl">{getFileIcon(type)}</span>
         <div className="flex-1 min-w-0">
-          <div className="font-medium truncate">{name}</div>
+          <div className="font-medium truncate flex items-center gap-1">
+            {name}
+            {message.fileData.hash && (
+              <span className="text-xs" title={`Verified with SHA-256: ${message.fileData.hash.substring(0, 16)}...`}>
+                🔒
+              </span>
+            )}
+          </div>
           <div className="text-xs opacity-75">{formatFileSize(size)}</div>
         </div>
         <span className="text-xs">↓</span>

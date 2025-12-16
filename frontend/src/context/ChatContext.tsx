@@ -173,6 +173,22 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Listen for file upload events to refresh messages
+  useEffect(() => {
+    const handleFileUploaded = (event: any) => {
+      console.log('[FILE] ✅ File uploaded event detected, refreshing messages...', event.detail);
+      // Immediate refresh without delay
+      loadMessages();
+    };
+    
+    console.log('[FILE] 👂 Listening for fileUploaded events');
+    window.addEventListener('fileUploaded', handleFileUploaded);
+    return () => {
+      console.log('[FILE] 🔇 Removing fileUploaded listener');
+      window.removeEventListener('fileUploaded', handleFileUploaded);
+    };
+  }, [loadMessages]);
+
   // Heartbeat to keep user status online
   useEffect(() => {
     if (!isAuthenticated || !currentUser) return;
