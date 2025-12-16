@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ChatProvider, useChat } from './context/ChatContext';
 import ChatWindow from './components/ChatWindow';
 import LoginForm from './components/LoginForm';

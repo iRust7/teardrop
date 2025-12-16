@@ -24,7 +24,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [typingUsers, setTypingUsers] = useState<any[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -105,7 +104,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     try {
       setAuthError(null);
-      const { user, session } = await authAPI.login(email, password);
+      const { user } = await authAPI.login(email, password);
       setCurrentUser(user);
       setIsAuthenticated(true);
       setIsConnected(true);
@@ -121,7 +120,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const register = async (username: string, email: string, password: string) => {
     try {
       setAuthError(null);
-      const { user, session } = await authAPI.register(username, email, password);
+      const { user } = await authAPI.register(username, email, password);
       setCurrentUser(user);
       setIsAuthenticated(true);
       setIsConnected(true);

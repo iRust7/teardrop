@@ -12,7 +12,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   disabled = false,
 }) => {
   const [message, setMessage] = useState('');
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<number | null>(null);
 
   const handleSend = () => {
     if (message.trim() && !disabled) {
