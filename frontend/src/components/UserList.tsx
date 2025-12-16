@@ -26,6 +26,7 @@ const UserList: React.FC<UserListProps> = ({ users, currentUser }) => {
   }, [onlineUsers.length, offlineUsers.length]);
 
   const handleUserClick = (userId: string) => {
+    console.log('[USER LIST] Selecting user:', userId);
     selectUser(userId);
   };
 

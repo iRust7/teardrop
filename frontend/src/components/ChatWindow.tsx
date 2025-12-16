@@ -115,7 +115,7 @@ const ChatWindow: React.FC = () => {
           onSendMessage={handleSendMessage}
           onTyping={handleTyping}
           receiverId={selectedUserId || undefined}
-          disabled={!isConnected || !selectedUserId || isSending}
+          disabled={!isConnected || isSending}
           isSending={isSending}
         />
       </div>

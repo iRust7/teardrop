@@ -29,6 +29,11 @@ const MessageInput: React.FC<MessageInputProps> = ({
     '💪', '🎊', '⭐', '💕', '😴', '🤗', '😇', '🌟'
   ];
 
+  // Debug log
+  React.useEffect(() => {
+    console.log('[MESSAGE INPUT] receiverId:', receiverId, 'disabled:', disabled, 'uploadingFile:', uploadingFile);
+  }, [receiverId, disabled, uploadingFile]);
+
   const handleSend = () => {
     if (message.trim() && !disabled) {
       onSendMessage(message.trim());
@@ -119,8 +124,16 @@ const MessageInput: React.FC<MessageInputProps> = ({
             value={message}
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder={disabled ? "👈 Select a user to start chatting" : "Type a message... (Press Enter to send)"}
-            disabled={disabled || uploadingFile}
+            placeholder={
+              uploadingFile 
+                ? "📤 Uploading file..." 
+                : !receiverId 
+                  ? "👈 Select a user to start chatting" 
+                  : disabled
+                    ? "⚠️ Connection lost, reconnecting..."
+                    : "Type a message... (Press Enter to send)"
+            }
+            disabled={!receiverId || uploadingFile}
             className="w-full px-4 py-3 pr-12 rounded-2xl border border-gray-300 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200 resize-none max-h-32 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
             rows={1}
             style={{ minHeight: '48px' }}
@@ -145,9 +158,9 @@ const MessageInput: React.FC<MessageInputProps> = ({
         <div className="relative" ref={emojiPickerRef}>
           <button
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            disabled={disabled || uploadingFile}
+            disabled={!receiverId || uploadingFile}
             className="p-3 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Emoji"
+            title={!receiverId ? "Select a user first" : "Emoji"}
           >
             <span className="text-2xl">😊</span>
           </button>
@@ -177,15 +190,15 @@ const MessageInput: React.FC<MessageInputProps> = ({
             ref={fileInputRef}
             type="file"
             onChange={handleFileSelect}
-            disabled={disabled || uploadingFile}
+            disabled={!receiverId || uploadingFile}
             className="hidden"
             accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip,.rar"
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            disabled={disabled || uploadingFile}
+            disabled={!receiverId || uploadingFile}
             className="p-3 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Attach file"
+            title={!receiverId ? "Select a user first" : uploadingFile ? "Uploading..." : "Attach file"}
           >
             <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
