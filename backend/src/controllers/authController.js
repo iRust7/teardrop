@@ -109,18 +109,27 @@ export class AuthController {
   static login = asyncHandler(async (req, res) => {
     const { email, password, turnstileToken } = req.body;
 
+    console.log(`[LOGIN] Attempt for email: ${email}`);
+
     // Find user
     const user = await UserModel.findByEmail(email);
     if (!user) {
+      console.log(`[LOGIN] User not found: ${email}`);
       return res.status(401).json(
         ApiResponse.error('Invalid email or password')
       );
     }
 
+    console.log(`[LOGIN] User found: ${email}, email_verified: ${user.email_verified}`);
+
     // Check if email is verified
     if (!user.email_verified) {
+      console.log(`[LOGIN] Email not verified for: ${email}`);
       return res.status(403).json(
-        ApiResponse.error('Please verify your email first. Check your inbox for OTP code.')
+        ApiResponse.error('Please verify your email first. Check your inbox for OTP code.', { 
+          needsVerification: true,
+          email: user.email 
+        })
       );
     }
 

@@ -14,7 +14,8 @@ router.post(
 
 router.post(
   '/login',
-  rateLimit(20, 60000), // Increased from 10 to 20
+  // Temporarily increased limit for debugging
+  rateLimit(100, 60000), // 100 requests per minute
   validateBody(['email', 'password']),
   AuthController.login
 );

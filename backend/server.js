@@ -35,9 +35,11 @@ app.use(cors({
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.some(allowed => origin.includes(allowed.replace('https://', '')))) {
+      console.log('[CORS] Allowed origin:', origin);
       callback(null, true);
     } else {
-      console.log('[CORS] Blocked origin:', origin);
+      console.log('[CORS] ⛔ Blocked origin:', origin);
+      console.log('[CORS] Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -66,7 +68,8 @@ app.use((req, res, next) => {
 // Request logging middleware
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] ${req.method} ${req.path}`);
+  const origin = req.headers.origin || 'no-origin';
+  console.log(`[${timestamp}] ${req.method} ${req.path} - Origin: ${origin}`);
   next();
 });
 

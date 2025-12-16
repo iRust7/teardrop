@@ -92,12 +92,16 @@ export function rateLimit(maxRequests = 100, windowMs = 60000) {
     }
 
     if (record.count >= maxRequests) {
+      console.log(`[RATE LIMIT] ⛔ Blocked ${key} - ${record.count}/${maxRequests} requests`);
       return res.status(429).json(
-        ApiResponse.error('Too many requests. Please try again later.')
+        ApiResponse.error('Too many requests. Please try again later.', {
+          retryAfter: Math.ceil((record.resetTime - now) / 1000)
+        })
       );
     }
 
     record.count++;
+    console.log(`[RATE LIMIT] ${key} - ${record.count}/${maxRequests} requests`);
     next();
   };
 }

@@ -339,7 +339,15 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       console.log('[LOGIN] Login complete');
     } catch (error: any) {
       console.error('[LOGIN] Login error:', error);
-      const message = error.response?.data?.error || error.message || 'Login failed';
+      
+      // Check for email verification error (403)
+      if (error.response?.status === 403 && error.response?.data?.data?.needsVerification) {
+        const errorMsg = 'Please verify your email first. Check your inbox for the verification code.';
+        setAuthError(errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      const message = error.response?.data?.error || error.response?.data?.message || error.message || 'Login failed';
       setAuthError(message);
       throw new Error(message);
     }
