@@ -70,13 +70,15 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const loadUsers = async () => {
     try {
       const fetchedUsers = await usersAPI.getAllUsers();
-      setUsers(fetchedUsers.map((u: any) => ({
-        id: u.id,
-        username: u.username,
-        email: u.email,
-        avatar: u.avatar_url,
-        status: 'online',
-      })));
+      if (fetchedUsers && Array.isArray(fetchedUsers)) {
+        setUsers(fetchedUsers.map((u: any) => ({
+          id: u.id,
+          username: u.username,
+          email: u.email,
+          avatar: u.avatar_url,
+          status: u.status || 'online',
+        })));
+      }
     } catch (error) {
       console.error('Error loading users:', error);
     }
@@ -87,16 +89,18 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     
     try {
       const fetchedMessages = await messagesAPI.getMessages(currentUser.id);
-      setMessages(fetchedMessages.map((m: any) => ({
-        id: m.id,
-        userId: m.sender_id,
-        username: m.sender?.username || 'Unknown',
-        content: m.content,
-        timestamp: new Date(m.created_at).getTime(),
-        hash: '',
-        type: 'text',
-        isRead: m.is_read,
-      })));
+      if (fetchedMessages && Array.isArray(fetchedMessages)) {
+        setMessages(fetchedMessages.map((m: any) => ({
+          id: m.id,
+          userId: m.user_id || m.sender_id,
+          username: m.users?.username || m.sender?.username || 'Unknown',
+          content: m.content,
+          timestamp: new Date(m.created_at).getTime(),
+          hash: '',
+          type: 'text',
+          isRead: m.is_read,
+        })));
+      }
     } catch (error) {
       console.error('Error loading messages:', error);
     }

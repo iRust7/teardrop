@@ -66,7 +66,7 @@ export const authAPI = {
 export const usersAPI = {
   getAllUsers: async () => {
     const response = await api.get('/users');
-    return response.data;
+    return response.data.data; // Unwrap { success, data, message } format
   },
 };
 
@@ -76,12 +76,12 @@ export const messagesAPI = {
     const response = await api.get('/messages', {
       params: userId ? { userId } : undefined,
     });
-    return response.data;
+    return response.data.data; // Unwrap { success, data, message } format
   },
 
   createMessage: async (message: { content: string; sender_id: string; receiver_id: string }) => {
     const response = await api.post('/messages', message);
-    return response.data;
+    return response.data.data; // Unwrap { success, data, message } format
   },
 };
 
