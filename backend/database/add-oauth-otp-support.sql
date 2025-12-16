@@ -12,6 +12,10 @@ ALTER TABLE users
 ADD COLUMN IF NOT EXISTS otp_code VARCHAR(6),
 ADD COLUMN IF NOT EXISTS otp_expiry TIMESTAMP;
 
+-- Add failed login attempts tracking
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0;
+
 -- Create index on google_id for faster lookups
 CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
 

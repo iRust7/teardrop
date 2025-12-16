@@ -19,27 +19,19 @@ router.post(
   AuthController.login
 );
 
-// OAuth routes
+// OTP routes for registration email verification
 router.post(
-  '/google/callback',
-  rateLimit(10, 60000),
-  validateBody(['email']),
-  AuthController.googleCallback
-);
-
-// OTP routes
-router.post(
-  '/otp/send',
-  rateLimit(5, 60000), // 5 OTP requests per minute
-  validateBody(['email']),
-  AuthController.sendOTP
-);
-
-router.post(
-  '/otp/verify',
+  '/verify-otp',
   rateLimit(10, 60000),
   validateBody(['email', 'otp']),
-  AuthController.verifyOTP
+  AuthController.verifyRegistrationOTP
+);
+
+router.post(
+  '/resend-otp',
+  rateLimit(3, 60000), // 3 resend requests per minute
+  validateBody(['email']),
+  AuthController.resendOTP
 );
 
 // Protected routes

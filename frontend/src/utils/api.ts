@@ -41,16 +41,14 @@ api.interceptors.request.use(
 
 // Auth API
 export const authAPI = {
-  register: async (username: string, email: string, password: string) => {
-    const response = await api.post('/auth/register', { username, email, password });
-    if (response.data.data?.token) {
-      localStorage.setItem('auth_token', response.data.data.token);
-    }
-    return response.data.data;
+  register: async (username: string, email: string, password: string, turnstileToken?: string) => {
+    const response = await api.post('/auth/register', { username, email, password, turnstileToken });
+    // Register now returns needsVerification flag instead of token
+    return response.data.data || { needsVerification: true, email };
   },
 
-  login: async (email: string, password: string) => {
-    const response = await api.post('/auth/login', { email, password });
+  login: async (email: string, password: string, turnstileToken?: string) => {
+    const response = await api.post('/auth/login', { email, password, turnstileToken });
     if (response.data.data?.token) {
       localStorage.setItem('auth_token', response.data.data.token);
     }
@@ -71,13 +69,13 @@ export const authAPI = {
     return response.data.data;
   },
 
-  sendOTP: async (email: string) => {
-    const response = await api.post('/auth/otp/send', { email });
+  resendOTP: async (email: string) => {
+    const response = await api.post('/auth/resend-otp', { email });
     return response.data;
   },
 
-  verifyOTP: async (email: string, otp: string) => {
-    const response = await api.post('/auth/otp/verify', { email, otp });
+  verifyRegistrationOTP: async (email: string, otp: string) => {
+    const response = await api.post('/auth/verify-otp', { email, otp });
     if (response.data.data?.token) {
       localStorage.setItem('auth_token', response.data.data.token);
     }

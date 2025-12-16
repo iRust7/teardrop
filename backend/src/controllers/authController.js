@@ -8,10 +8,34 @@ import { ApiResponse, asyncHandler, sanitizeUser } from '../utils/helpers.js';
  */
 export class AuthController {
   /**
-   * Register a new user
+   * Register a new user (Step 1: Create user and send OTP)
    */
   static register = asyncHandler(async (req, res) => {
-    const { username, email, password } = req.body;
+    const { username, email, password, turnstileToken } = req.body;
+
+    // Verify Turnstile token
+    if (!turnstileToken) {
+      return res.status(400).json(
+        ApiResponse.error('Captcha verification required')
+      );
+    }
+
+    // Verify Turnstile with Cloudflare
+    const turnstileVerify = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        secret: process.env.TURNSTILE_SECRET_KEY,
+        response: turnstileToken
+      })
+    });
+    const turnstileResult = await turnstileVerify.json();
+    
+    if (!turnstileResult.success) {
+      return res.status(400).json(
+        ApiResponse.error('Captcha verification failed')
+      );
+    }
 
     // Check if user already exists
     const existingUser = await UserModel.findByEmail(email);
@@ -38,34 +62,52 @@ export class AuthController {
     // Hash password
     const password_hash = await hashPassword(password);
 
-    // Create user
+    // Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Create user (email not verified yet)
     const user = await UserModel.create({
       username,
       email,
       password_hash,
-      status: 'online',
-      role: 'user'
+      status: 'offline',
+      role: 'user',
+      email_verified: false,
+      otp_code: otp,
+      otp_expiry: otpExpiry.toISOString()
     });
 
-    // Generate token
-    const token = generateToken({ userId: user.id, email: user.email, role: user.role });
-
-    res.status(201).json(
-      ApiResponse.success(
-        {
-          user: sanitizeUser(user),
-          token
-        },
-        'User registered successfully'
-      )
-    );
+    // Send OTP via Gmail
+    try {
+      const { sendOTPEmail } = await import('../utils/emailService.js');
+      await sendOTPEmail(email, otp);
+      
+      console.log(`[REGISTER] OTP sent to ${email}: ${otp}`);
+      
+      res.status(201).json(
+        ApiResponse.success(
+          { email, userId: user.id },
+          'Registration successful! Check your email for OTP verification code.'
+        )
+      );
+    } catch (emailError) {
+      console.error('[REGISTER] Email send failed:', emailError);
+      
+      // Rollback user creation if email fails
+      await UserModel.delete(user.id);
+      
+      res.status(500).json(
+        ApiResponse.error('Failed to send verification email. Please try again.')
+      );
+    }
   });
 
   /**
-   * Login user
+   * Login user (with rate limiting and turnstile after 3 failed attempts)
    */
   static login = asyncHandler(async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, turnstileToken } = req.body;
 
     // Find user
     const user = await UserModel.findByEmail(email);
@@ -75,16 +117,65 @@ export class AuthController {
       );
     }
 
-    // Verify password
-    const isValidPassword = await comparePassword(password, user.password_hash);
-    if (!isValidPassword) {
-      return res.status(401).json(
-        ApiResponse.error('Invalid email or password')
+    // Check if email is verified
+    if (!user.email_verified) {
+      return res.status(403).json(
+        ApiResponse.error('Please verify your email first. Check your inbox for OTP code.')
       );
     }
 
-    // Update user status to online
-    await UserModel.updateStatus(user.id, 'online');
+    // Check failed login attempts
+    const failedAttempts = user.failed_login_attempts || 0;
+    
+    // Require Turnstile after 3 failed attempts
+    if (failedAttempts >= 3) {
+      if (!turnstileToken) {
+        return res.status(429).json(
+          ApiResponse.error('Too many failed attempts. Please complete the captcha.', { requireCaptcha: true })
+        );
+      }
+
+      // Verify Turnstile
+      const turnstileVerify = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          secret: process.env.TURNSTILE_SECRET_KEY,
+          response: turnstileToken
+        })
+      });
+      const turnstileResult = await turnstileVerify.json();
+      
+      if (!turnstileResult.success) {
+        return res.status(400).json(
+          ApiResponse.error('Captcha verification failed', { requireCaptcha: true })
+        );
+      }
+    }
+
+    // Verify password
+    const isValidPassword = await comparePassword(password, user.password_hash);
+    if (!isValidPassword) {
+      // Increment failed attempts
+      await UserModel.update(user.id, {
+        failed_login_attempts: failedAttempts + 1
+      });
+      
+      const remainingAttempts = 3 - (failedAttempts + 1);
+      const message = remainingAttempts > 0 
+        ? `Invalid email or password. ${remainingAttempts} attempts remaining before captcha required.`
+        : 'Invalid email or password. Captcha required for next attempt.';
+      
+      return res.status(401).json(
+        ApiResponse.error(message, { requireCaptcha: failedAttempts + 1 >= 3 })
+      );
+    }
+
+    // Reset failed attempts on successful login
+    await UserModel.update(user.id, {
+      failed_login_attempts: 0,
+      status: 'online'
+    });
 
     // Generate token
     const token = generateToken({ userId: user.id, email: user.email, role: user.role });
@@ -254,9 +345,9 @@ export class AuthController {
   });
 
   /**
-   * Send OTP to email
+   * Resend OTP for email verification (during registration)
    */
-  static sendOTP = asyncHandler(async (req, res) => {
+  static resendOTP = asyncHandler(async (req, res) => {
     const { email } = req.body;
 
     if (!email) {
@@ -269,13 +360,20 @@ export class AuthController {
     const user = await UserModel.findByEmail(email);
     if (!user) {
       return res.status(404).json(
-        ApiResponse.error('User not found. Please register first.')
+        ApiResponse.error('User not found.')
       );
     }
 
-    // Generate OTP (6 digits)
+    // Check if already verified
+    if (user.email_verified) {
+      return res.status(400).json(
+        ApiResponse.error('Email already verified. Please login.')
+      );
+    }
+
+    // Generate new OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
     // Save OTP to user record
     await UserModel.update(user.id, {
@@ -288,35 +386,27 @@ export class AuthController {
       const { sendOTPEmail } = await import('../utils/emailService.js');
       await sendOTPEmail(email, otp);
       
-      console.log(`[OTP] Code sent to ${email}: ${otp} (expires: ${otpExpiry})`);
+      console.log(`[RESEND OTP] Code sent to ${email}: ${otp}`);
       
       res.json(
         ApiResponse.success(
           { email },
-          'Kode OTP telah dikirim ke email kamu'
+          'Kode OTP baru telah dikirim ke email kamu'
         )
       );
     } catch (emailError) {
-      console.error('[OTP] Email send failed:', emailError);
+      console.error('[RESEND OTP] Email send failed:', emailError);
       
-      // Fallback: log OTP for development
-      console.log(`[OTP] FALLBACK - Code for ${email}: ${otp}`);
-      
-      res.json(
-        ApiResponse.success(
-          { email, otp: process.env.NODE_ENV === 'development' ? otp : undefined },
-          process.env.NODE_ENV === 'development' 
-            ? `Development mode - OTP: ${otp}` 
-            : 'OTP sent to your email'
-        )
+      res.status(500).json(
+        ApiResponse.error('Failed to send OTP. Please try again.')
       );
     }
   });
 
   /**
-   * Verify OTP and login
+   * Verify OTP after registration (email verification)
    */
-  static verifyOTP = asyncHandler(async (req, res) => {
+  static verifyRegistrationOTP = asyncHandler(async (req, res) => {
     const { email, otp } = req.body;
 
     if (!email || !otp) {
@@ -333,24 +423,32 @@ export class AuthController {
       );
     }
 
+    // Check if already verified
+    if (user.email_verified) {
+      return res.status(400).json(
+        ApiResponse.error('Email already verified. Please login.')
+      );
+    }
+
     // Check OTP
     if (!user.otp_code || user.otp_code !== otp) {
       return res.status(401).json(
-        ApiResponse.error('Invalid OTP')
+        ApiResponse.error('Kode OTP salah')
       );
     }
 
     // Check expiry
     if (new Date() > new Date(user.otp_expiry)) {
       return res.status(401).json(
-        ApiResponse.error('OTP has expired')
+        ApiResponse.error('Kode OTP sudah kadaluarsa. Silakan kirim ulang.')
       );
     }
 
-    // Clear OTP
+    // Verify email and clear OTP
     await UserModel.update(user.id, {
       otp_code: null,
       otp_expiry: null,
+      email_verified: true,
       status: 'online',
     });
 
@@ -363,7 +461,7 @@ export class AuthController {
           user: sanitizeUser(user),
           token,
         },
-        'OTP verified successfully'
+        'Email verified successfully! You can now login.'
       )
     );
   });
