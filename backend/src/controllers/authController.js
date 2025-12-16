@@ -2,13 +2,14 @@ import { UserModel } from '../models/User.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import { generateToken } from '../utils/jwt.js';
 import { ApiResponse, asyncHandler, sanitizeUser } from '../utils/helpers.js';
+import { supabase } from '../config/database.js';
 
 /**
- * Auth Controller - Handles authentication operations
+ * Auth Controller - Handles authentication operations using Supabase Auth
  */
 export class AuthController {
   /**
-   * Register a new user (Step 1: Create user and send OTP)
+   * Register a new user (Step 1: Send OTP via Supabase Auth)
    */
   static register = asyncHandler(async (req, res) => {
     const { username, email, password, turnstileToken } = req.body;
@@ -37,7 +38,7 @@ export class AuthController {
       );
     }
 
-    // Check if user already exists
+    // Check if user already exists in our database
     const existingUser = await UserModel.findByEmail(email);
     if (existingUser) {
       return res.status(409).json(
@@ -59,14 +60,10 @@ export class AuthController {
       );
     }
 
-    // Hash password
+    // Hash password for our database
     const password_hash = await hashPassword(password);
 
-    // Generate OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 1 * 60 * 1000); // 1 minute
-
-    // Create user (email not verified yet)
+    // Create user in our database (not verified yet)
     const user = await UserModel.create({
       username,
       email,
@@ -74,16 +71,27 @@ export class AuthController {
       status: 'offline',
       role: 'user',
       email_verified: false,
-      otp_code: otp,
-      otp_expiry: otpExpiry.toISOString()
+      otp_code: null,
+      otp_expiry: null
     });
 
-    // Send OTP via Gmail
+    // Send OTP via Supabase Auth
     try {
-      const { sendOTPEmail } = await import('../utils/emailService.js');
-      await sendOTPEmail(email, otp);
-      
-      console.log(`[REGISTER] OTP sent to ${email}: ${otp}`);
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          shouldCreateUser: false, // We handle user creation separately
+        }
+      });
+
+      if (error) {
+        console.error('[REGISTER] Supabase OTP error:', error);
+        // Rollback user creation if OTP fails
+        await UserModel.delete(user.id);
+        throw error;
+      }
+
+      console.log(`[REGISTER] OTP sent via Supabase to ${email}`);
       
       res.status(201).json(
         ApiResponse.success(
@@ -91,8 +99,8 @@ export class AuthController {
           'Registration successful! Check your email for OTP verification code.'
         )
       );
-    } catch (emailError) {
-      console.error('[REGISTER] Email send failed:', emailError);
+    } catch (error) {
+      console.error('[REGISTER] Failed to send OTP:', error);
       
       // Rollback user creation if email fails
       await UserModel.delete(user.id);
@@ -406,22 +414,21 @@ export class AuthController {
       );
     }
 
-    // Generate new OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 1 * 60 * 1000);
-
-    // Save OTP to user record
-    await UserModel.update(user.id, {
-      otp_code: otp,
-      otp_expiry: otpExpiry.toISOString(),
-    });
-
-    // Send OTP via Gmail
+    // Send OTP via Supabase Auth
     try {
-      const { sendOTPEmail } = await import('../utils/emailService.js');
-      await sendOTPEmail(email, otp);
-      
-      console.log(`[RESEND OTP] Code sent to ${email}: ${otp}`);
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          shouldCreateUser: false,
+        }
+      });
+
+      if (error) {
+        console.error('[RESEND OTP] Supabase error:', error);
+        throw error;
+      }
+
+      console.log(`[RESEND OTP] OTP sent via Supabase to ${email}`);
       
       res.json(
         ApiResponse.success(
@@ -429,21 +436,17 @@ export class AuthController {
           'Kode OTP baru telah dikirim ke email kamu'
         )
       );
-    } catch (emailError) {
-      console.error('[RESEND OTP] ❌ Email send failed:', emailError.message);
-      
-      const errorMsg = emailError.message.includes('timeout') 
-        ? 'Email service is slow. Please wait a moment and try again.'
-        : 'Failed to send OTP. Please try again.';
+    } catch (error) {
+      console.error('[RESEND OTP] ❌ Failed:', error.message);
       
       res.status(500).json(
-        ApiResponse.error(errorMsg)
+        ApiResponse.error('Failed to send OTP. Please try again.')
       );
     }
   });
 
   /**
-   * Verify OTP after registration (email verification)
+   * Verify OTP after registration (email verification using Supabase Auth)
    */
   static verifyRegistrationOTP = asyncHandler(async (req, res) => {
     const { email, otp } = req.body;
@@ -454,7 +457,7 @@ export class AuthController {
       );
     }
 
-    // Find user
+    // Find user in our database
     const user = await UserModel.findByEmail(email);
     if (!user) {
       return res.status(404).json(
@@ -469,39 +472,55 @@ export class AuthController {
       );
     }
 
-    // Check OTP
-    if (!user.otp_code || user.otp_code !== otp) {
-      return res.status(401).json(
-        ApiResponse.error('Kode OTP salah')
+    // Verify OTP with Supabase Auth
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: email,
+        token: otp,
+        type: 'email'
+      });
+
+      if (error) {
+        console.error('[VERIFY OTP] Supabase error:', error);
+        
+        if (error.message.includes('expired')) {
+          return res.status(401).json(
+            ApiResponse.error('Kode OTP sudah kadaluarsa. Silakan kirim ulang.')
+          );
+        }
+        
+        return res.status(401).json(
+          ApiResponse.error('Kode OTP salah')
+        );
+      }
+
+      // OTP verified successfully, update our database
+      await UserModel.update(user.id, {
+        otp_code: null,
+        otp_expiry: null,
+        email_verified: true,
+        status: 'online',
+      });
+
+      console.log(`[VERIFY OTP] Email verified for ${email}`);
+
+      // Generate our custom JWT token
+      const token = generateToken({ userId: user.id, email: user.email, role: user.role });
+
+      res.json(
+        ApiResponse.success(
+          {
+            user: sanitizeUser(user),
+            token,
+          },
+          'Email verified successfully! You can now login.'
+        )
+      );
+    } catch (error) {
+      console.error('[VERIFY OTP] Error:', error);
+      res.status(500).json(
+        ApiResponse.error('Failed to verify OTP. Please try again.')
       );
     }
-
-    // Check expiry
-    if (new Date() > new Date(user.otp_expiry)) {
-      return res.status(401).json(
-        ApiResponse.error('Kode OTP sudah kadaluarsa. Silakan kirim ulang.')
-      );
-    }
-
-    // Verify email and clear OTP
-    await UserModel.update(user.id, {
-      otp_code: null,
-      otp_expiry: null,
-      email_verified: true,
-      status: 'online',
-    });
-
-    // Generate token
-    const token = generateToken({ userId: user.id, email: user.email, role: user.role });
-
-    res.json(
-      ApiResponse.success(
-        {
-          user: sanitizeUser(user),
-          token,
-        },
-        'Email verified successfully! You can now login.'
-      )
-    );
   });
 }

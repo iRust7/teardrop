@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { authAPI } from '../utils/api';
+import { supabase } from '../utils/supabase';
 
 interface RegisterFormProps {
   onRegister: (username: string, email: string, password: string) => Promise<void>;
@@ -123,14 +124,25 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, error }) =
 
     setOtpLoading(true);
     try {
-      await authAPI.resendOTP(email);
+      // Send OTP using Supabase Auth
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          shouldCreateUser: false,
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
       setOtpSent(true);
       setOtpCountdown(60); // 1 minute countdown
       setValidationError('');
-      console.log('[OTP] Sent successfully to:', email);
+      console.log('[OTP] Sent successfully via Supabase to:', email);
     } catch (err: any) {
-      console.error('[OTP] Send failed:', err.response?.data || err.message);
-      const errorMsg = err.response?.data?.message || err.response?.data?.error || 'Failed to send OTP';
+      console.error('[OTP] Send failed:', err.message);
+      const errorMsg = err.message || 'Failed to send OTP';
       setValidationError(errorMsg);
     } finally {
       setOtpLoading(false);
@@ -175,9 +187,21 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, error }) =
 
     setLoading(true);
     try {
+      // First verify OTP with Supabase
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: email,
+        token: otpCode,
+        type: 'email'
+      });
+
+      if (verifyError) {
+        throw new Error(verifyError.message || 'Invalid OTP code');
+      }
+
+      // Then register user with backend
       await authAPI.register(username, email, password, turnstileToken || 'fallback');
       
-      // Verify OTP
+      // Verify with backend to get our custom JWT
       const verifyResponse = await authAPI.verifyRegistrationOTP(email, otpCode);
       
       // Store token and redirect
@@ -185,7 +209,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, error }) =
       localStorage.setItem('user', JSON.stringify(verifyResponse.user));
       window.location.reload();
     } catch (err: any) {
-      setValidationError(err.response?.data?.message || 'Registration failed');
+      setValidationError(err.response?.data?.message || err.message || 'Registration failed');
       // Reset Turnstile
       if (window.turnstile && widgetId.current) {
         window.turnstile.reset(widgetId.current);
