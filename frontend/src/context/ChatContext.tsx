@@ -33,6 +33,58 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Define helper functions BEFORE useEffect hooks that use them
+  const loadUsers = useCallback(async () => {
+    try {
+      console.log('[USERS] Loading users...');
+      const fetchedUsers = await usersAPI.getAllUsers();
+      console.log('[USERS] Fetched users:', fetchedUsers?.length || 0);
+      if (fetchedUsers && Array.isArray(fetchedUsers)) {
+        const mappedUsers = fetchedUsers.map((u: any) => ({
+          id: u.id,
+          username: u.username,
+          email: u.email,
+          avatar: u.avatar_url,
+          status: u.status || 'offline',
+        }));
+        setUsers(mappedUsers);
+        console.log('[USERS] Users state updated');
+      }
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  }, []);
+
+  const loadMessages = useCallback(async () => {
+    if (!currentUser) {
+      console.log('[MESSAGES] No current user, skipping load');
+      return;
+    }
+    
+    try {
+      console.log('[MESSAGES] Loading messages for user:', currentUser.username, 'ID:', currentUser.id);
+      const fetchedMessages = await messagesAPI.getMessages(currentUser.id);
+      console.log('[MESSAGES] Fetched messages:', fetchedMessages?.length || 0);
+      if (fetchedMessages && Array.isArray(fetchedMessages)) {
+        const mappedMessages = fetchedMessages.map((m: any) => ({
+          id: m.id,
+          userId: m.user_id,
+          receiverId: m.receiver_id,
+          username: m.sender?.username || 'Unknown',
+          content: m.content,
+          timestamp: new Date(m.created_at).getTime(),
+          hash: '',
+          type: 'text' as const,
+          isRead: m.is_read,
+        }));
+        console.log('[MESSAGES] Setting messages state with', mappedMessages.length, 'messages');
+        setMessages(mappedMessages);
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
+  }, [currentUser]);
+
   useEffect(() => {
     // Check if user is already logged in
     const checkAuth = async () => {
@@ -97,7 +149,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     };
 
     checkAuth();
-  }, []);
+  }, [loadUsers, loadMessages]);
 
   // Heartbeat to keep user status online
   useEffect(() => {
@@ -199,57 +251,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     };
   }, [isAuthenticated, currentUser, loadMessages, loadUsers]);
 
-  const loadUsers = useCallback(async () => {
-    try {
-      console.log('[USERS] Loading users...');
-      const fetchedUsers = await usersAPI.getAllUsers();
-      console.log('[USERS] Fetched users:', fetchedUsers?.length || 0);
-      if (fetchedUsers && Array.isArray(fetchedUsers)) {
-        const mappedUsers = fetchedUsers.map((u: any) => ({
-          id: u.id,
-          username: u.username,
-          email: u.email,
-          avatar: u.avatar_url,
-          status: u.status || 'offline',
-        }));
-        setUsers(mappedUsers);
-        console.log('[USERS] Users state updated');
-      }
-    } catch (error) {
-      console.error('Error loading users:', error);
-    }
-  }, []);
-
-  const loadMessages = useCallback(async () => {
-    if (!currentUser) {
-      console.log('[MESSAGES] No current user, skipping load');
-      return;
-    }
-    
-    try {
-      console.log('[MESSAGES] Loading messages for user:', currentUser.username, 'ID:', currentUser.id);
-      const fetchedMessages = await messagesAPI.getMessages(currentUser.id);
-      console.log('[MESSAGES] Fetched messages:', fetchedMessages?.length || 0);
-      if (fetchedMessages && Array.isArray(fetchedMessages)) {
-        const mappedMessages = fetchedMessages.map((m: any) => ({
-          id: m.id,
-          userId: m.user_id,
-          receiverId: m.receiver_id,
-          username: m.sender?.username || 'Unknown',
-          content: m.content,
-          timestamp: new Date(m.created_at).getTime(),
-          hash: '',
-          type: 'text',
-          isRead: m.is_read,
-        }));
-        console.log('[MESSAGES] Setting messages state with', mappedMessages.length, 'messages');
-        setMessages(mappedMessages);
-      }
-    } catch (error) {
-      console.error('Error loading messages:', error);
-    }
-  }, [currentUser]);
-
   const login = async (email: string, password: string) => {
     try {
       setAuthError(null);
@@ -344,7 +345,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         content: content.trim(),
         timestamp: Date.now(),
         hash: '',
-        type: 'text',
+        type: 'text' as const,
         isRead: false,
       };
       

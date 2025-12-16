@@ -14,7 +14,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   isSending = false,
 }) => {
   const [message, setMessage] = useState('');
-  const typingTimeoutRef = useRef<number | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSend = () => {
     if (message.trim() && !disabled) {
