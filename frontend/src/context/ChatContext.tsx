@@ -32,6 +32,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [authError, setAuthError] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Track if realtime is already subscribed to prevent infinite loops
+  const realtimeSetupRef = React.useRef(false);
 
   // Define helper functions BEFORE useEffect hooks that use them
   const loadUsers = useCallback(async () => {
@@ -160,7 +163,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     };
 
     checkAuth();
-  }, [loadUsers, loadMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Heartbeat to keep user status online
   useEffect(() => {
@@ -184,6 +188,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       console.log('[REALTIME] Not authenticated or no current user, skipping subscription');
       return;
     }
+    
+    // Prevent multiple subscriptions
+    if (realtimeSetupRef.current) {
+      console.log('[REALTIME] Already subscribed, skipping');
+      return;
+    }
+    
+    realtimeSetupRef.current = true;
 
     // Initial load - do sequentially to avoid overwhelming server
     console.log('[REALTIME] Initial load for user:', currentUser.username);
@@ -218,7 +230,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
             // Optimistic update to ensure immediate feedback
             setMessages((prev) => {
-              if (prev.some(m => m.id === newMessage.id)) return prev;
+              // Prevent duplicates
+              if (prev.some(m => m.id === newMessage.id)) {
+                console.log('[REALTIME] Message already exists, skipping');
+                return prev;
+              }
               
               const optimisiticMessage: Message = {
                 id: newMessage.id,
@@ -231,13 +247,15 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                 type: 'text',
                 isRead: newMessage.is_read
               };
+              
+              console.log('[REALTIME] Adding new message to state');
               return [...prev, optimisiticMessage];
             });
             
-            // Immediately reload messages to get complete data
-            loadMessages();
-            // Also reload users to update last seen
-            loadUsers();
+            // Debounced reload to get complete data (only once per second)
+            setTimeout(() => {
+              loadMessages();
+            }, 1000);
           } else {
             console.log('[REALTIME] Message not for current user, ignoring');
           }
@@ -276,10 +294,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
     return () => {
       console.log('[REALTIME] Cleaning up subscriptions');
+      realtimeSetupRef.current = false;
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(usersChannel);
     };
-  }, [isAuthenticated, currentUser, loadMessages, loadUsers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, currentUser?.id]);
 
   const login = async (email: string, password: string) => {
     try {
