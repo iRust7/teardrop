@@ -114,9 +114,30 @@ app.listen(PORT, () => {
   console.log(`   • Messages: http://localhost:${PORT}/api/messages`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
   
+  // Test Gmail connection for OTP
+  testEmailService();
+  
   // Start user status monitoring
   StatusService.startMonitoring();
 });
+
+// Test email service on startup
+async function testEmailService() {
+  try {
+    const { testEmailConnection } = await import('./src/utils/emailService.js');
+    const isConnected = await testEmailConnection();
+    if (isConnected) {
+      console.log('📧 Gmail OTP Service: ✓ Connected');
+      console.log(`   • Email: ${process.env.GMAIL_USER}`);
+    } else {
+      console.log('⚠️  Gmail OTP Service: Not configured');
+      console.log('   • OTP will fallback to console log (development mode)');
+    }
+  } catch (error) {
+    console.log('⚠️  Gmail OTP Service: Not configured');
+    console.log('   • See GMAIL_OTP_SETUP.md for setup instructions');
+  }
+}
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

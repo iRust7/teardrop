@@ -269,7 +269,7 @@ export class AuthController {
     const user = await UserModel.findByEmail(email);
     if (!user) {
       return res.status(404).json(
-        ApiResponse.error('User not found')
+        ApiResponse.error('User not found. Please register first.')
       );
     }
 
@@ -283,16 +283,34 @@ export class AuthController {
       otp_expiry: otpExpiry.toISOString(),
     });
 
-    // In production, send email here using SendGrid, Mailgun, etc.
-    // For demo, we'll log it
-    console.log(`[OTP] Code for ${email}: ${otp} (expires: ${otpExpiry})`);
-
-    res.json(
-      ApiResponse.success(
-        { email },
-        'OTP sent to your email'
-      )
-    );
+    // Send OTP via Gmail
+    try {
+      const { sendOTPEmail } = await import('../utils/emailService.js');
+      await sendOTPEmail(email, otp);
+      
+      console.log(`[OTP] Code sent to ${email}: ${otp} (expires: ${otpExpiry})`);
+      
+      res.json(
+        ApiResponse.success(
+          { email },
+          'Kode OTP telah dikirim ke email kamu'
+        )
+      );
+    } catch (emailError) {
+      console.error('[OTP] Email send failed:', emailError);
+      
+      // Fallback: log OTP for development
+      console.log(`[OTP] FALLBACK - Code for ${email}: ${otp}`);
+      
+      res.json(
+        ApiResponse.success(
+          { email, otp: process.env.NODE_ENV === 'development' ? otp : undefined },
+          process.env.NODE_ENV === 'development' 
+            ? `Development mode - OTP: ${otp}` 
+            : 'OTP sent to your email'
+        )
+      );
+    }
   });
 
   /**

@@ -1,6 +1,6 @@
-# Teardrop Chat
+# Teardrop Chat 💬
 
-Real-time chat application with separate frontend and backend architecture using Supabase.
+Real-time chat application with Google OAuth, OTP verification, file sharing, and emoji support using Supabase.
 
 ## 🏗️ Architecture
 
@@ -56,6 +56,17 @@ Located at `frontend/.env`:
 VITE_API_URL=http://localhost:3002/api
 ```
 
+## ✨ Features
+
+- 💬 Real-time messaging with Supabase Realtime
+- 🔐 **Google OAuth Login** - Sign in with your Google account
+- 📧 **OTP Email Verification** - Magic link authentication
+- 📎 File sharing (images, documents) with Supabase Storage
+- 😊 Emoji picker with 24 common emojis
+- 👥 User list with online/offline status
+- 🔔 Message notifications
+- 📱 Responsive design
+
 ## 🔐 Security
 
 - ✅ Credentials stored in backend only
@@ -63,20 +74,39 @@ VITE_API_URL=http://localhost:3002/api
 - ✅ CORS configured for frontend URL
 - ✅ JWT token management
 - ✅ Row Level Security in Supabase
+- ✅ **Google OAuth 2.0 Integration**
+- ✅ **OTP Email Verification** (10-minute expiry)
+- ✅ Rate limiting on auth endpoints
+- ✅ Secure file storage with access policies
+
+## 🔑 Authentication Methods
+
+### 1. Email & Password
+Traditional login with hashed passwords
+
+### 2. Google OAuth
+One-click login with Google account - See [OAUTH_SETUP.md](OAUTH_SETUP.md)
+
+### 3. OTP Email (Magic Link)
+Passwordless login via email verification
 
 ## 📡 API Endpoints
 
 ### Authentication
 - `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login
+- `POST /api/auth/login` - Login with email/password
 - `POST /api/auth/logout` - Logout
+- `POST /api/auth/google/callback` - **Handle Google OAuth** 
+- `POST /api/auth/otp/send` - **Send OTP to email**
+- `POST /api/auth/otp/verify` - **Verify OTP code**
 
 ### Users
 - `GET /api/users` - Get all users
 
 ### Messages
 - `GET /api/messages?userId=xxx` - Get messages for user
-- `POST /api/messages` - Send message
+- `POST /api/messages` - Send text message
+- `POST /api/messages/upload` - **Upload file (image/document)**
 
 ## 🛠️ Tech Stack
 
@@ -88,12 +118,19 @@ VITE_API_URL=http://localhost:3002/api
 
 **Backend:**
 - Node.js + Express
-- Supabase Client
+- Supabase Client (Auth, Database, Storage, Realtime)
+- Multer (file uploads)
 - CORS + JWT
+- Rate limiting
 
 **Database:**
-- Supabase (PostgreSQL)
+- Supabase PostgreSQL
 - Row Level Security
+- Realtime subscriptions
+
+**Storage:**
+- Supabase Storage (chat-files bucket)
+- 10MB file size limit
 
 ## 📝 Development
 
@@ -109,16 +146,39 @@ npm run dev     # Start dev server
 npm run build   # Build for production
 ```
 
-## 🎯 Features
+## 🚀 Quick Setup for OAuth & OTP
 
-- ✅ User authentication
-- ✅ Real-time messaging (polling every 3s)
-- ✅ Private conversations
-- ✅ User list
-- ✅ Responsive design
-- 🔄 File sharing (Cloudflare R2 - coming soon)
+### Google OAuth Setup
+See **[OAUTH_SETUP.md](OAUTH_SETUP.md)** for detailed instructions.
 
-## ✅ Cleanup Done
+Quick steps:
+1. Run database migration: `backend/database/add-oauth-otp-support.sql`
+2. Configure Google OAuth in Supabase Dashboard
+3. Get credentials from Google Cloud Console
+4. Test with Gmail account
+
+### OTP Email Setup  
+See **[GMAIL_OTP_SETUP.md](GMAIL_OTP_SETUP.md)** for step-by-step guide.
+
+Quick steps:
+1. Buat Gmail baru untuk aplikasi
+2. Aktifkan 2-Step Verification
+3. Generate App Password (16 digit)
+4. Update backend `.env`:
+   ```env
+   GMAIL_USER=your-email@gmail.com
+   GMAIL_APP_PASSWORD=abcdefghijklmnop
+   ```
+5. Restart backend dan test kirim OTP
+
+## 📦 Database Migrations
+
+Run these in order:
+1. `backend/database/add-file-support.sql` - File messaging support
+2. `backend/database/enable-realtime.sql` - Realtime subscriptions
+3. `backend/database/add-oauth-otp-support.sql` - OAuth and OTP support
+
+## ✅ Production Ready
 
 - ❌ Removed MongoDB dependencies
 - ❌ Removed Socket.IO

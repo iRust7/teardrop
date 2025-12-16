@@ -16,6 +16,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onSwitchToRegister, onGo
   const [otpEmail, setOtpEmail] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [verifyLoading, setVerifyLoading] = useState(false);
 
   const handleGoogleLogin = async () => {
     try {
@@ -41,25 +43,43 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onSwitchToRegister, onGo
 
   const handleSendOTP = async () => {
     if (!otpEmail.trim()) {
-      alert('Please enter your email');
+      alert('Mohon masukkan email kamu');
       return;
     }
     setOtpLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: otpEmail,
-        options: {
-          shouldCreateUser: false,
-        },
-      });
-      if (error) throw error;
+      // Gunakan backend custom OTP via Gmail
+      const { authAPI } = await import('../utils/api');
+      const response = await authAPI.sendOTP(otpEmail);
       setOtpSent(true);
-      alert('OTP sent to your email! Check your inbox.');
+      // Show OTP in development mode if returned
+      if (response.data?.otp) {
+        alert(`Development Mode - Kode OTP: ${response.data.otp}`);
+      }
     } catch (error: any) {
       console.error('OTP error:', error);
-      alert(error.message || 'Failed to send OTP. Please try again.');
+      alert(error.response?.data?.message || 'Gagal mengirim OTP. Silakan coba lagi.');
     } finally {
       setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (!otpCode.trim() || otpCode.length !== 6) {
+      alert('Mohon masukkan kode OTP 6 digit');
+      return;
+    }
+    setVerifyLoading(true);
+    try {
+      const { authAPI } = await import('../utils/api');
+      await authAPI.verifyOTP(otpEmail, otpCode);
+      // Reload page to trigger auth check
+      window.location.href = '/';
+    } catch (error: any) {
+      console.error('Verify OTP error:', error);
+      alert(error.response?.data?.message || 'Kode OTP salah atau sudah kadaluarsa');
+    } finally {
+      setVerifyLoading(false);
     }
   };
 
@@ -235,22 +255,45 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onSwitchToRegister, onGo
               </>
             ) : (
               <div className="text-center">
-                <div className="text-6xl mb-4">\u2709\ufe0f</div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Check Your Email!</h3>
+                <div className="text-6xl mb-4">📧</div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Masukkan Kode OTP</h3>
                 <p className="text-gray-600 mb-6">
-                  We've sent a magic link to <span className="font-semibold">{otpEmail}</span>.
-                  Click the link in your email to sign in.
+                  Kami telah mengirim kode OTP ke <span className="font-semibold">{otpEmail}</span>.
+                  Silakan cek email kamu.
                 </p>
-                <button
-                  onClick={() => {
-                    setShowOtpModal(false);
-                    setOtpSent(false);
-                    setOtpEmail('');
-                  }}
-                  className="text-primary-500 font-medium hover:text-primary-600"
-                >
-                  Close
-                </button>
+                <div className="space-y-4">
+                  <div>
+                    <input
+                      type="text"
+                      value={otpCode}
+                      onChange={(e) => {
+                        // Only allow numbers and max 6 digits
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        setOtpCode(value);
+                      }}
+                      placeholder="000000"
+                      maxLength={6}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-center text-2xl font-bold tracking-widest"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">Kode berlaku selama 10 menit</p>
+                  </div>
+                  <button
+                    onClick={handleVerifyOTP}
+                    disabled={verifyLoading || otpCode.length !== 6}
+                    className="w-full bg-primary-500 text-white py-3 rounded-lg font-medium hover:bg-primary-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {verifyLoading ? 'Verifying...' : 'Verify OTP'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setOtpSent(false);
+                      setOtpCode('');
+                    }}
+                    className="text-primary-500 font-medium hover:text-primary-600 text-sm"
+                  >
+                    ← Kirim ulang OTP
+                  </button>
+                </div>
               </div>
             )}
           </div>
