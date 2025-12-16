@@ -10,54 +10,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onSwitchToRegister, erro
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otpEmail, setOtpEmail] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [verifyLoading, setVerifyLoading] = useState(false);
-
-  const handleSendOTP = async () => {
-    if (!otpEmail.trim()) {
-      alert('Mohon masukkan email kamu');
-      return;
-    }
-    setOtpLoading(true);
-    try {
-      // Gunakan backend custom OTP via Gmail
-      const { authAPI } = await import('../utils/api');
-      const response = await authAPI.sendOTP(otpEmail);
-      setOtpSent(true);
-      // Show OTP in development mode if returned
-      if (response.data?.otp) {
-        alert(`Development Mode - Kode OTP: ${response.data.otp}`);
-      }
-    } catch (error: any) {
-      console.error('OTP error:', error);
-      alert(error.response?.data?.message || 'Gagal mengirim OTP. Silakan coba lagi.');
-    } finally {
-      setOtpLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async () => {
-    if (!otpCode.trim() || otpCode.length !== 6) {
-      alert('Mohon masukkan kode OTP 6 digit');
-      return;
-    }
-    setVerifyLoading(true);
-    try {
-      const { authAPI } = await import('../utils/api');
-      await authAPI.verifyOTP(otpEmail, otpCode);
-      // Reload page to trigger auth check
-      window.location.href = '/';
-    } catch (error: any) {
-      console.error('Verify OTP error:', error);
-      alert(error.response?.data?.message || 'Kode OTP salah atau sudah kadaluarsa');
-    } finally {
-      setVerifyLoading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,27 +74,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onSwitchToRegister, erro
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
-
-          {/* OTP Login */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or</span>
-            </div>
-          </div>
-
-          {/* OTP Login */}
-          <button
-            type="button"
-            onClick={() => setShowOtpModal(true)}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-white border-2 border-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span className="text-xl">📧</span>
-            Sign in with Email OTP
-          </button>
         </form>
 
         <div className="mt-6 text-center">
@@ -165,9 +96,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onSwitchToRegister, erro
           </div>
         </div>
       </div>
+    </div>
+  );
+};
 
-      {/* OTP Modal */}
-      {showOtpModal && (
+export default LoginForm;
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
             <div className="flex justify-between items-center mb-6">
