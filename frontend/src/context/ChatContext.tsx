@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Message, User, ChatState } from '../types';
 import { authAPI, usersAPI, messagesAPI } from '../utils/api';
+import { supabase } from '../utils/supabase';
 
 interface ChatContextType extends ChatState {
   sendMessage: (content: string, receiverId: string) => Promise<void>;
@@ -51,20 +52,86 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     checkAuth();
   }, []);
 
-  // Poll for new messages every 3 seconds
+  // Real-time subscription for messages
   useEffect(() => {
     if (!isAuthenticated || !currentUser) return;
 
-    const pollMessages = async () => {
-      try {
-        await loadMessages();
-      } catch (error) {
-        console.error('Error polling messages:', error);
-      }
-    };
+    // Initial load
+    loadMessages();
+    loadUsers();
 
-    const interval = setInterval(pollMessages, 3000);
-    return () => clearInterval(interval);
+    // Subscribe to new messages
+    const messagesChannel = supabase
+      .channel('messages_channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+          filter: `user_id=eq.${currentUser.id},receiver_id=eq.${currentUser.id}`,
+        },
+        (payload) => {
+          console.log('Message change received:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            const newMessage = payload.new as any;
+            setMessages((prev) => [...prev, {
+              id: newMessage.id,
+              userId: newMessage.user_id,
+              username: 'User', // Will be updated on next load
+              content: newMessage.content,
+              timestamp: new Date(newMessage.created_at).getTime(),
+              hash: '',
+              type: 'text',
+              isRead: newMessage.is_read,
+            }]);
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedMessage = payload.new as any;
+            setMessages((prev) => 
+              prev.map((m) => 
+                m.id === updatedMessage.id 
+                  ? { ...m, isRead: updatedMessage.is_read }
+                  : m
+              )
+            );
+          }
+          
+          // Reload to get complete data with usernames
+          loadMessages();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to user status changes
+    const usersChannel = supabase
+      .channel('users_channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'users',
+        },
+        (payload) => {
+          console.log('User status change:', payload);
+          const updatedUser = payload.new as any;
+          
+          setUsers((prev) =>
+            prev.map((u) =>
+              u.id === updatedUser.id
+                ? { ...u, status: updatedUser.status }
+                : u
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(usersChannel);
+    };
   }, [isAuthenticated, currentUser]);
 
   const loadUsers = async () => {
