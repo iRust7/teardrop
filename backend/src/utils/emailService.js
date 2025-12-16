@@ -11,23 +11,20 @@ const createTransporter = () => {
   
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // true for 465, false for other ports
-    requireTLS: true,
+    port: 465, // Use port 465 for SSL (often more reliable than 587)
+    secure: true, // true for 465
     auth: {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_APP_PASSWORD,
     },
     // Force IPv4 to avoid IPv6 connection issues
     family: 4,
-    // Longer timeouts for production
-    connectionTimeout: isProd ? 60000 : 30000, // 60s prod, 30s dev
-    greetingTimeout: isProd ? 30000 : 15000,    // 30s prod, 15s dev
-    socketTimeout: isProd ? 60000 : 45000,     // 60s prod, 45s dev
-    // Additional config for reliability
-    pool: true,
-    maxConnections: 1,
-    maxMessages: 3,
+    // Timeouts
+    connectionTimeout: isProd ? 60000 : 10000, // 10s dev (fail fast to fallback)
+    greetingTimeout: isProd ? 30000 : 5000,
+    socketTimeout: isProd ? 60000 : 10000,
+    // Disable pool for better debugging/reliability in dev
+    pool: false,
     // Debug logging
     logger: !isProd,
     debug: !isProd
@@ -253,7 +250,7 @@ Jika kamu tidak meminta kode ini, abaikan email ini.
     // Add timeout promise to prevent hanging
     // Longer timeout for production environment
     const isProd = process.env.NODE_ENV === 'production';
-    const timeoutMs = isProd ? 60000 : 45000; // 60s prod, 45s dev
+    const timeoutMs = isProd ? 60000 : 15000; // 60s prod, 15s dev (fail fast)
     
     const sendMailPromise = transporter.sendMail(mailOptions);
     const timeoutPromise = new Promise((_, reject) => 
@@ -265,6 +262,16 @@ Jika kamu tidak meminta kode ini, abaikan email ini.
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('[EMAIL] ❌ Failed to send OTP:', error.message);
+    
+    // FALLBACK FOR DEVELOPMENT: If email fails, just log it and continue
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n⚠️  [DEV MODE FALLBACK] Email sending failed, but continuing...');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log(`🔑 OTP Code for ${toEmail}: ${otpCode}`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      return { success: true, messageId: 'dev-fallback' };
+    }
+
     // More specific error messages
     if (error.message.includes('timeout')) {
       throw new Error('Email service timeout. Please try again.');
