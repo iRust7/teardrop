@@ -1,6 +1,37 @@
 import { MessageModel } from '../models/Message.js';
 import { UserModel } from '../models/User.js';
 import { ApiResponse, asyncHandler } from '../utils/helpers.js';
+import { supabaseAdmin } from '../config/database.js';
+import crypto from 'crypto';
+import multer from 'multer';
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept images, videos, pdfs, documents
+    const allowedTypes = [
+      'image/',
+      'video/',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument',
+      'text/',
+      'application/zip',
+      'application/x-rar',
+    ];
+    
+    if (allowedTypes.some(type => file.mimetype.startsWith(type))) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type'));
+    }
+  },
+}).single('file');
 
 /**
  * Message Controller - Handles messaging operations
@@ -48,6 +79,93 @@ export class MessageController {
     res.status(201).json(
       ApiResponse.success(completeMessage, 'Message sent successfully')
     );
+  });
+
+  /**
+   * Upload file and send as message
+   */
+  static uploadFile = asyncHandler(async (req, res) => {
+    // Use multer middleware
+    upload(req, res, async (err) => {
+      if (err) {
+        return res.status(400).json(
+          ApiResponse.error(err.message || 'File upload failed')
+        );
+      }
+
+      if (!req.file) {
+        return res.status(400).json(
+          ApiResponse.error('No file provided')
+        );
+      }
+
+      const { receiver_id, caption } = req.body;
+      const user_id = req.user.id;
+
+      // Validate receiver exists
+      const receiver = await UserModel.findById(receiver_id);
+      if (!receiver) {
+        return res.status(404).json(
+          ApiResponse.error('Receiver not found')
+        );
+      }
+
+      try {
+        // Generate unique filename
+        const fileExt = req.file.originalname.split('.').pop();
+        const fileName = `${user_id}/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`;
+        
+        // Upload to Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+          .from('chat-files')
+          .upload(fileName, req.file.buffer, {
+            contentType: req.file.mimetype,
+            cacheControl: '3600',
+          });
+
+        if (uploadError) {
+          console.error('Supabase upload error:', uploadError);
+          return res.status(500).json(
+            ApiResponse.error('Failed to upload file to storage')
+          );
+        }
+
+        // Get public URL
+        const { data: urlData } = supabaseAdmin.storage
+          .from('chat-files')
+          .getPublicUrl(fileName);
+
+        // Create message with file data
+        const fileData = {
+          name: req.file.originalname,
+          size: req.file.size,
+          type: req.file.mimetype,
+          url: urlData.publicUrl,
+          path: fileName,
+        };
+
+        const message = await MessageModel.create({
+          user_id,
+          receiver_id,
+          content: caption || '',
+          type: 'file',
+          file_data: fileData,
+          is_read: false,
+        });
+
+        // Fetch complete message with user data
+        const completeMessage = await MessageModel.findById(message.id);
+
+        res.status(201).json(
+          ApiResponse.success(completeMessage, 'File uploaded and sent successfully')
+        );
+      } catch (error) {
+        console.error('File upload error:', error);
+        return res.status(500).json(
+          ApiResponse.error('Failed to process file upload')
+        );
+      }
+    });
   });
 
   /**

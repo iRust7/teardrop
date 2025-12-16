@@ -119,6 +119,22 @@ export const messagesAPI = {
     console.log('[MESSAGE] Message sent response:', response.data);
     return response.data.data; // Unwrap { success, data, message } format
   },
+
+  sendFile: async (file: File, receiverId: string, caption?: string) => {
+    console.log('[FILE] Uploading file:', file.name, 'to receiver:', receiverId);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('receiver_id', receiverId);
+    if (caption) formData.append('caption', caption);
+
+    const response = await api.post('/messages/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    console.log('[FILE] File uploaded:', response.data);
+    return response.data.data;
+  },
 };
 
 export default api;

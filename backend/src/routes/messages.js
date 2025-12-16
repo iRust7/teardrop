@@ -13,6 +13,7 @@ router.post(
   validateBody(['receiver_id', 'content']),
   MessageController.sendMessage
 );
+router.post('/upload', MessageController.uploadFile);
 router.get('/', MessageController.getUserMessages);
 router.get('/conversations/recent', MessageController.getRecentConversations);
 router.get('/unread-count', MessageController.getUnreadCount);
