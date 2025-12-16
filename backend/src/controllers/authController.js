@@ -64,7 +64,7 @@ export class AuthController {
 
     // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const otpExpiry = new Date(Date.now() + 1 * 60 * 1000); // 1 minute
 
     // Create user (email not verified yet)
     const user = await UserModel.create({
@@ -408,7 +408,7 @@ export class AuthController {
 
     // Generate new OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    const otpExpiry = new Date(Date.now() + 1 * 60 * 1000);
 
     // Save OTP to user record
     await UserModel.update(user.id, {

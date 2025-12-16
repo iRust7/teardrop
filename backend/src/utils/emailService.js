@@ -205,7 +205,7 @@ export const sendOTPEmail = async (toEmail, otpCode) => {
               <div class="otp-section">
                 <div class="otp-label">Your Verification Code</div>
                 <div class="otp-code">${otpCode}</div>
-                <div class="otp-expires">⏱ Expires in 10 minutes</div>
+                <div class="otp-expires">⏱ Expires in 1 minute</div>
               </div>
 
               <p class="message">
@@ -236,7 +236,7 @@ Teardrop Chat - Kode OTP Login
 
 Kode OTP kamu adalah: ${otpCode}
 
-Kode ini berlaku selama 10 menit.
+Kode ini berlaku selama 1 menit.
 Masukkan kode ini di halaman login untuk melanjutkan.
 
 JANGAN BAGIKAN kode ini kepada siapapun!
