@@ -6,16 +6,23 @@ import nodemailer from 'nodemailer';
 
 // Konfigurasi transporter untuk Gmail
 const createTransporter = () => {
+  // Increase timeouts for production environment (Railway needs more time)
+  const isProd = process.env.NODE_ENV === 'production';
+  
   return nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_APP_PASSWORD,
     },
-    // Add timeout to prevent hanging
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 5000, // 5 seconds
-    socketTimeout: 15000, // 15 seconds
+    // Longer timeouts for production
+    connectionTimeout: isProd ? 30000 : 10000, // 30s prod, 10s dev
+    greetingTimeout: isProd ? 15000 : 5000,    // 15s prod, 5s dev
+    socketTimeout: isProd ? 45000 : 15000,     // 45s prod, 15s dev
+    // Additional config for reliability
+    pool: true,
+    maxConnections: 1,
+    maxMessages: 3,
   });
 };
 
@@ -236,9 +243,13 @@ Jika kamu tidak meminta kode ini, abaikan email ini.
     };
 
     // Add timeout promise to prevent hanging
+    // Longer timeout for production environment
+    const isProd = process.env.NODE_ENV === 'production';
+    const timeoutMs = isProd ? 40000 : 15000; // 40s prod, 15s dev
+    
     const sendMailPromise = transporter.sendMail(mailOptions);
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Email send timeout after 15s')), 15000)
+      setTimeout(() => reject(new Error(`Email send timeout after ${timeoutMs/1000}s`)), timeoutMs)
     );
     
     const info = await Promise.race([sendMailPromise, timeoutPromise]);
