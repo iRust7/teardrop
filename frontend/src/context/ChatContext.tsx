@@ -205,6 +205,67 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     return () => clearInterval(heartbeatInterval);
   }, [isAuthenticated, currentUser]);
 
+  // Polling fallback - Check for new messages every 3 seconds as backup
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser) return;
+
+    console.log('[POLLING] 🔄 Starting message polling fallback...');
+    const lastMessageIdRef = { current: messages.length > 0 ? messages[messages.length - 1].id : null };
+    
+    const pollingInterval = setInterval(async () => {
+      try {
+        const fetchedMessages = await messagesAPI.getMessages(currentUser.id);
+        
+        if (fetchedMessages && Array.isArray(fetchedMessages) && fetchedMessages.length > 0) {
+          const latestFetchedId = fetchedMessages[fetchedMessages.length - 1].id;
+          
+          // Only update if there's a new message (different ID)
+          if (lastMessageIdRef.current !== latestFetchedId) {
+            console.log('[POLLING] 🆕 New messages detected! Latest ID:', latestFetchedId);
+            
+            const mappedMessages = fetchedMessages.map((m: any) => ({
+              id: m.id,
+              userId: m.user_id,
+              receiverId: m.receiver_id,
+              username: m.sender?.username || 'Unknown',
+              content: m.content || '',
+              timestamp: new Date(m.created_at).getTime(),
+              hash: '',
+              type: (m.type || 'text') as 'text' | 'file',
+              fileData: m.file_data ? {
+                name: m.file_data.name,
+                size: m.file_data.size,
+                type: m.file_data.type,
+                url: m.file_data.url,
+                hash: m.file_data.hash || '',
+              } : undefined,
+              isRead: m.is_read,
+            }));
+            
+            // Check if the new message is for current user (received, not sent)
+            const latestMessage = mappedMessages[mappedMessages.length - 1];
+            const isReceivedMessage = latestMessage && latestMessage.receiverId === currentUser.id;
+            
+            if (isReceivedMessage && lastMessageIdRef.current !== null) {
+              console.log('[POLLING] 🔔 Playing notification for new received message');
+              playNotificationSound();
+            }
+            
+            setMessages(mappedMessages);
+            lastMessageIdRef.current = latestFetchedId;
+          }
+        }
+      } catch (error) {
+        console.error('[POLLING] Error checking messages:', error);
+      }
+    }, 3000); // Poll every 3 seconds
+
+    return () => {
+      console.log('[POLLING] ⏹️ Stopping message polling');
+      clearInterval(pollingInterval);
+    };
+  }, [isAuthenticated, currentUser?.id]);
+
   // Real-time subscription for messages
   useEffect(() => {
     if (!isAuthenticated || !currentUser) {
@@ -229,9 +290,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     // Subscribe to new messages (messages sent TO or FROM current user)
     console.log('[REALTIME] Setting up message subscription for user:', currentUser.username, 'ID:', currentUser.id);
     const messagesChannel = supabase
-      .channel(`messages_channel_${currentUser.id}`, {
+      .channel(`messages_channel_${currentUser.id}_${Date.now()}`, {
         config: {
-          broadcast: { self: true }
+          broadcast: { self: true },
+          presence: { key: currentUser.id }
         }
       })
       .on(
@@ -260,10 +322,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           handleNewMessage(payload.new as any, false);
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log('[REALTIME] Message subscription status:', status);
+        if (err) {
+          console.error('[REALTIME] ❌ Subscription error:', err);
+        }
         if (status === 'SUBSCRIBED') {
           console.log('[REALTIME] ✅ Successfully subscribed to real-time messages');
+          console.log('[REALTIME] ℹ️ Note: Polling fallback is also active every 3 seconds');
         }
       });
 
