@@ -269,6 +269,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
     // Helper function to handle new messages
     function handleNewMessage(newMessage: any, isSentByMe: boolean) {
+      if (!currentUser) return; // Safety check
+      
       console.log('[REALTIME] Processing message:', newMessage.id, 'sentByMe:', isSentByMe);
       
       // Play notification sound if message is from someone else
@@ -289,7 +291,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           id: newMessage.id,
           userId: newMessage.user_id,
           receiverId: newMessage.receiver_id,
-          username: newMessage.user_id === currentUser.id ? currentUser.username : '...', // Placeholder until reload
+          username: newMessage.user_id === currentUser?.id ? currentUser.username : '...', // Placeholder until reload
           content: newMessage.content || '',
           timestamp: new Date(newMessage.created_at).getTime(),
           hash: '',
