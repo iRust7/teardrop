@@ -227,73 +227,93 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     });
 
     // Subscribe to new messages (messages sent TO or FROM current user)
-    console.log('[REALTIME] Setting up message subscription for user:', currentUser.username);
+    console.log('[REALTIME] Setting up message subscription for user:', currentUser.username, 'ID:', currentUser.id);
     const messagesChannel = supabase
-      .channel(`messages_channel_${currentUser.id}`)
+      .channel(`messages_channel_${currentUser.id}`, {
+        config: {
+          broadcast: { self: true }
+        }
+      })
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
+          filter: `user_id=eq.${currentUser.id}`,
         },
         (payload) => {
-          console.log('[REALTIME] New message received!', payload);
-          const newMessage = payload.new as any;
-          
-          // Only add if message involves current user
-          if (newMessage.user_id === currentUser.id || newMessage.receiver_id === currentUser.id) {
-            console.log('[REALTIME] Message is for current user, updating state...');
-            
-            // Play notification sound if message is from someone else
-            if (newMessage.user_id !== currentUser.id) {
-              console.log('[REALTIME] Playing notification sound');
-              playNotificationSound();
-            }
-
-            // Optimistic update to ensure immediate feedback
-            setMessages((prev) => {
-              // Prevent duplicates
-              if (prev.some(m => m.id === newMessage.id)) {
-                console.log('[REALTIME] Message already exists, skipping');
-                return prev;
-              }
-              
-              const optimisiticMessage: Message = {
-                id: newMessage.id,
-                userId: newMessage.user_id,
-                receiverId: newMessage.receiver_id,
-                username: newMessage.user_id === currentUser.id ? currentUser.username : '...', // Placeholder until reload
-                content: newMessage.content || '',
-                timestamp: new Date(newMessage.created_at).getTime(),
-                hash: '',
-                type: (newMessage.type || 'text') as 'text' | 'file',
-                fileData: newMessage.file_data ? {
-                  name: newMessage.file_data.name,
-                  size: newMessage.file_data.size,
-                  type: newMessage.file_data.type,
-                  url: newMessage.file_data.url,
-                  hash: newMessage.file_data.hash || '',
-                } : undefined,
-                isRead: newMessage.is_read
-              };
-              
-              console.log('[REALTIME] Adding new message to state, type:', newMessage.type, 'hasFile:', !!newMessage.file_data);
-              return [...prev, optimisiticMessage];
-            });
-            
-            // Debounced reload to get complete data (only once per second)
-            setTimeout(() => {
-              loadMessages();
-            }, 1000);
-          } else {
-            console.log('[REALTIME] Message not for current user, ignoring');
-          }
+          console.log('[REALTIME] 📤 New message sent by me:', payload);
+          handleNewMessage(payload.new as any, true);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `receiver_id=eq.${currentUser.id}`,
+        },
+        (payload) => {
+          console.log('[REALTIME] 📥 New message received for me:', payload);
+          handleNewMessage(payload.new as any, false);
         }
       )
       .subscribe((status) => {
         console.log('[REALTIME] Message subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('[REALTIME] ✅ Successfully subscribed to real-time messages');
+        }
       });
+
+    // Helper function to handle new messages
+    function handleNewMessage(newMessage: any, isSentByMe: boolean) {
+      console.log('[REALTIME] Processing message:', newMessage.id, 'sentByMe:', isSentByMe);
+      
+      // Play notification sound if message is from someone else
+      if (!isSentByMe) {
+        console.log('[REALTIME] 🔔 Playing notification sound');
+        playNotificationSound();
+      }
+
+      // Optimistic update to ensure immediate feedback
+      setMessages((prev) => {
+        // Prevent duplicates
+        if (prev.some(m => m.id === newMessage.id)) {
+          console.log('[REALTIME] Message already exists, skipping');
+          return prev;
+        }
+        
+        const optimisiticMessage: Message = {
+          id: newMessage.id,
+          userId: newMessage.user_id,
+          receiverId: newMessage.receiver_id,
+          username: newMessage.user_id === currentUser.id ? currentUser.username : '...', // Placeholder until reload
+          content: newMessage.content || '',
+          timestamp: new Date(newMessage.created_at).getTime(),
+          hash: '',
+          type: (newMessage.type || 'text') as 'text' | 'file',
+          fileData: newMessage.file_data ? {
+            name: newMessage.file_data.name,
+            size: newMessage.file_data.size,
+            type: newMessage.file_data.type,
+            url: newMessage.file_data.url,
+            hash: newMessage.file_data.hash || '',
+          } : undefined,
+          isRead: newMessage.is_read
+        };
+        
+        console.log('[REALTIME] ✅ Adding new message to state, type:', newMessage.type, 'hasFile:', !!newMessage.file_data);
+        return [...prev, optimisiticMessage];
+      });
+      
+      // Debounced reload to get complete data with sender info
+      setTimeout(() => {
+        console.log('[REALTIME] Reloading messages to get complete data...');
+        loadMessages();
+      }, 500);
+    }
 
     // Subscribe to user status changes
     const usersChannel = supabase
