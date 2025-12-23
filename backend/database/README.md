@@ -1,4 +1,4 @@
-# Teardrop Chat Backend - Database Setup
+# Trustdrop Chat Backend - Database Setup
 
 ## Setup Instructions
 
@@ -45,7 +45,7 @@ npm run seed
 ```
 
 This will create:
-- **1 Admin account** (admin@teardrop.chat / Admin123!)
+- **1 Admin account** (admin@trustdrop.chat / Admin123!)
 - **5 Test users** (john@example.com, jane@example.com, etc. / Test123!)
 - **Sample messages** between users
 
@@ -86,7 +86,7 @@ npm start      # Production mode
 After seeding, you can login with:
 
 **Admin Account:**
-- Email: `admin@teardrop.chat`
+- Email: `admin@trustdrop.chat`
 - Password: `Admin123!`
 
 **Test Users:**

@@ -61,7 +61,7 @@ const ChatWindow: React.FC = () => {
           <div className="flex items-center gap-4">
             <div className="text-2xl">💬</div>
             <div>
-              <h1 className="text-xl font-bold text-gray-800">Teardrop Chat</h1>
+              <h1 className="text-xl font-bold text-gray-800">Trustdrop Chat</h1>
               {selectedUser ? (
                 <p className="text-sm text-gray-600 flex items-center gap-2">
                   <span>Chatting with</span>

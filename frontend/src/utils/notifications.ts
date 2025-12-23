@@ -1,5 +1,5 @@
 /**
- * Notification utilities for Teardrop Chat
+ * Notification utilities for Trustdrop Chat
  */
 
 /**

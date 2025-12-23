@@ -27,7 +27,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onSwitchToRegister, erro
       <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
         <div className="text-center mb-8">
           <div className="text-5xl mb-4">💬</div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Teardrop Chat</h1>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Trustdrop Chat</h1>
           <p className="text-gray-600">Sign in to start chatting</p>
         </div>
 

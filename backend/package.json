@@ -1,7 +1,7 @@
 {
-  "name": "teardrop-chat-backend",
+  "name": "trustdrop-chat-backend",
   "version": "1.0.0",
-  "description": "Backend API for Teardrop Chat with Supabase",
+  "description": "Backend API for Trustdrop Chat with Supabase",
   "main": "server.js",
   "type": "module",
   "scripts": {

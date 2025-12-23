@@ -77,7 +77,7 @@ app.use((req, res, next) => {
 app.get('/health', (req, res) => {
   res.json({
     status: 'OK',
-    message: 'Teardrop Chat Backend is running',
+    message: 'Trustdrop Chat Backend is running',
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv
   });
@@ -91,7 +91,7 @@ app.use('/api/messages', messageRoutes);
 // Root route
 app.get('/', (req, res) => {
   res.json({
-    name: 'Teardrop Chat API',
+    name: 'Trustdrop Chat API',
     version: '1.0.0',
     description: 'Real-time chat application backend',
     endpoints: {
@@ -110,7 +110,7 @@ app.use(errorHandler);
 // Start server
 const PORT = config.port;
 app.listen(PORT, () => {
-  console.log('\n🚀 Teardrop Chat Backend');
+  console.log('\n🚀 Trustdrop Chat Backend');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`✓ Server running on port ${PORT}`);
   console.log(`✓ Environment: ${config.nodeEnv}`);

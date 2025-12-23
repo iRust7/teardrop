@@ -1,8 +1,8 @@
-# 🔐 Hash Functions Documentation - Teardrop Chat
+# 🔐 Hash Functions Documentation - Trustdrop Chat
 
 ## Overview
 
-Teardrop Chat menggunakan **berbagai jenis hash functions** untuk keamanan dan integritas data. Project ini mengimplementasikan **dua sistem hash terpisah**:
+Trustdrop Chat menggunakan **berbagai jenis hash functions** untuk keamanan dan integritas data. Project ini mengimplementasikan **dua sistem hash terpisah**:
 
 1. **Backend**: bcrypt untuk password hashing
 2. **Frontend**: SHA-256 untuk file & message integrity
@@ -763,4 +763,4 @@ async function hashFileChunked(file: File) {
 
 **Last Updated**: December 17, 2025  
 **Version**: 2.0  
-**Project**: Teardrop Chat
+**Project**: Trustdrop Chat

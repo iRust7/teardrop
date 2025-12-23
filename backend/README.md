@@ -1,4 +1,4 @@
-# 🚀 Teardrop Chat - Backend API
+# 🚀 Trustdrop Chat - Backend API
 
 Backend RESTful API untuk aplikasi chat real-time dengan Node.js, Express, dan Supabase.
 
@@ -105,7 +105,7 @@ Output:
 ✓ Users cleared
 
 👥 Creating users...
-  👑 admin (admin@teardrop.chat) - Password: Admin123!
+  👑 admin (admin@trustdrop.chat) - Password: Admin123!
   👤 john_doe (john@example.com) - Password: Test123!
   👤 jane_smith (jane@example.com) - Password: Test123!
   ...
@@ -133,7 +133,7 @@ Server akan berjalan di: `http://localhost:3001`
 
 ### Admin Account
 ```
-Email: admin@teardrop.chat
+Email: admin@trustdrop.chat
 Password: Admin123!
 Role: admin
 ```
@@ -419,7 +419,7 @@ curl http://localhost:3001/health
 # Login
 curl -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@teardrop.chat","password":"Admin123!"}'
+  -d '{"email":"admin@trustdrop.chat","password":"Admin123!"}'
 
 # Get users (dengan token)
 curl http://localhost:3001/api/users \

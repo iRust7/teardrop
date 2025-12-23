@@ -232,7 +232,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, error }) =
         <div className="text-center mb-8">
           <div className="text-5xl mb-4">💬</div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Create Account</h1>
-          <p className="text-gray-600">Join Teardrop Chat today</p>
+          <p className="text-gray-600">Join Trustdrop Chat today</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">

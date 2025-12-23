@@ -1,11 +1,11 @@
-# Teardrop Chat 💬
+# Trustdrop Chat 💬
 
 Real-time chat application with Google OAuth, OTP verification, file sharing, and emoji support using Supabase.
 
 ## 🏗️ Architecture
 
 ```
-teardrop-chat/
+trustdrop-chat/
 ├── frontend/          # React + TypeScript + Vite
 │   └── port: 3001
 ├── backend/          # Node.js + Express + Supabase

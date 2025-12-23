@@ -14,7 +14,7 @@ const AppContent = () => {
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary-50 to-primary-100">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-primary-500 border-t-transparent mb-4"></div>
-          <div className="text-xl font-semibold text-gray-700">Loading Teardrop Chat...</div>
+          <div className="text-xl font-semibold text-gray-700">Loading Trustdrop Chat...</div>
           <div className="text-sm text-gray-500 mt-2">Please wait</div>
         </div>
       </div>
